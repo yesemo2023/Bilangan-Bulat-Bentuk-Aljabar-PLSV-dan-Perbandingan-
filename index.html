@@ -1,0 +1,2436 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ular Tangga Matematika PID - Bilangan Bulat, Aljabar, PLSV & Perbandingan</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at top left, #1e1b4b, #0f172a 60%, #020617);
+            color: #f8fafc;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        /* Custom scrollbar for modals & logs */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* 10x10 Board Grid */
+        .board-10x10 {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 3D Dice Styling */
+        .scene-dice {
+            width: 84px;
+            height: 84px;
+            perspective: 400px;
+        }
+        .cube-dice {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+        }
+        .cube-face {
+            position: absolute;
+            width: 84px;
+            height: 84px;
+            border-radius: 16px;
+            background: linear-gradient(145deg, #ffffff, #e2e8f0);
+            border: 2px solid #cbd5e1;
+            box-shadow: inset 0 0 12px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.3);
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            padding: 10px;
+            gap: 4px;
+        }
+        .dot {
+            background: #1e293b;
+            border-radius: 50%;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 2px 3px rgba(0,0,0,0.5);
+        }
+        .dot.red { background: #e11d48; }
+        .face-1 { transform: rotateY(0deg) translateZ(42px); }
+        .face-2 { transform: rotateY(90deg) translateZ(42px); }
+        .face-3 { transform: rotateY(180deg) translateZ(42px); }
+        .face-4 { transform: rotateY(-90deg) translateZ(42px); }
+        .face-5 { transform: rotateX(90deg) translateZ(42px); }
+        .face-6 { transform: rotateX(-90deg) translateZ(42px); }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+            70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        }
+        .active-turn-glow {
+            animation: pulse-ring 2s infinite;
+        }
+        .pawn-transition {
+            transition: left 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden">
+
+    <!-- TOP HEADER BAR (Compact for 16:9 PID) -->
+    <header class="h-14 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-5 flex items-center justify-between shrink-0 z-20">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                <i class="fa-solid fa-gamepad text-white text-lg"></i>
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="text-base md:text-lg font-extrabold text-white tracking-tight">Ular Tangga Matematika PID</h1>
+                    <span class="px-2 py-0.5 text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-md hidden xl:inline">Bilangan Bulat • Aljabar • PLSV • Perbandingan</span>
+                </div>
+                <p class="text-[11px] text-slate-400 hidden sm:block">Papan Interaktif Digital 100 Petak • Kompetisi <span id="header-team-count-label" class="text-indigo-300 font-bold">4 Kelompok</span></p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <!-- Quick Group Count Selector in Header -->
+            <div class="flex items-center bg-slate-800/90 border border-slate-700 rounded-xl p-1" title="Pilih Jumlah Kelompok Bermain">
+                <span class="text-[11px] font-bold text-slate-400 px-2 hidden md:inline"><i class="fa-solid fa-users text-indigo-400 mr-1"></i>Tim:</span>
+                <button onclick="requestChangeGroupCount(2)" id="hdr-grp-btn-2" class="px-2.5 py-1 rounded-lg text-xs font-extrabold text-slate-300 hover:text-white transition">2</button>
+                <button onclick="requestChangeGroupCount(3)" id="hdr-grp-btn-3" class="px-2.5 py-1 rounded-lg text-xs font-extrabold text-slate-300 hover:text-white transition">3</button>
+                <button onclick="requestChangeGroupCount(4)" id="hdr-grp-btn-4" class="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-indigo-600 text-white shadow transition">4</button>
+            </div>
+            <button onclick="openQuestionManager()" class="flex items-center space-x-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 px-3.5 py-2 rounded-xl text-xs font-bold transition active:scale-95">
+                <i class="fa-solid fa-book-open"></i>
+                <span>Bank Soal (<span id="header-q-count">80</span>)</span>
+            </button>
+            <button onclick="openSettingsModal()" class="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition active:scale-95">
+                <i class="fa-solid fa-sliders text-amber-400"></i>
+                <span>Pengaturan Tim</span>
+            </button>
+            <button onclick="openSettingsModal()" class="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition active:scale-95">
+                <i class="fa-solid fa-sliders text-amber-400"></i>
+                <span>Pengaturan</span>
+            </button>
+            <button onclick="toggleAudio()" id="btn-audio" class="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded-xl text-xs font-bold transition active:scale-95" title="Suara">
+                <i class="fa-solid fa-volume-high text-emerald-400" id="icon-audio"></i>
+                <span class="hidden md:inline" id="text-audio">Suara</span>
+            </button>
+            <button onclick="confirmResetGame()" class="flex items-center space-x-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 px-3 py-2 rounded-xl text-xs font-bold transition active:scale-95" title="Reset Permainan">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span class="hidden md:inline">Reset</span>
+            </button>
+            <button onclick="toggleFullScreen()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 p-2 rounded-xl text-xs transition active:scale-95" title="Layar Penuh PID">
+                <i class="fa-solid fa-expand"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN 16:9 WORKSPACE (70% Left Board, 30% Right Control Panel) -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden p-3 gap-3">
+
+        <!-- LEFT PANEL (70%): 10x10 SNAKE & LADDER BOARD -->
+        <section class="w-full lg:w-[70%] h-full bg-slate-900/80 border border-slate-800 rounded-2xl p-2.5 flex items-center justify-center relative shadow-2xl overflow-hidden">
+            <!-- Aspect-preserved square-ish or full-fit container -->
+            <div id="board-wrapper" class="relative w-full h-full max-w-[125vh] bg-slate-950 rounded-xl border-2 border-slate-700 shadow-inner overflow-hidden">
+                
+                <!-- 100 Grid Cells -->
+                <div id="board-grid" class="board-10x10 relative z-10"></div>
+
+                <!-- SVG Overlay for Realistic Snakes & 3D Ladders (viewBox 0 0 1000 1000) -->
+                <svg id="board-svg" viewBox="0 0 1000 1000" preserveAspectRatio="none" class="absolute inset-0 w-full h-full pointer-events-none z-20"></svg>
+
+                <!-- Floating Pawns Layer (Smoothly animated over cells) -->
+                <div id="pawns-layer" class="absolute inset-0 w-full h-full pointer-events-none z-30"></div>
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL (30%): CONTROLS, GROUPS & LOGS -->
+        <aside class="w-full lg:w-[30%] h-full flex flex-col gap-2.5 overflow-hidden">
+            
+            <!-- 4 GROUPS SCOREBOARD -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 shrink-0 shadow-lg">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-users text-indigo-400"></i> Klasemen <span id="scoreboard-group-count">4</span> Kelompok
+                    </span>
+                    <div class="flex items-center gap-1 bg-slate-950/80 border border-slate-800 rounded-lg p-0.5">
+                        <button onclick="requestChangeGroupCount(2)" id="sb-grp-btn-2" class="px-2 py-0.5 rounded text-[10px] font-extrabold text-slate-400 hover:text-white transition">2 Tim</button>
+                        <button onclick="requestChangeGroupCount(3)" id="sb-grp-btn-3" class="px-2 py-0.5 rounded text-[10px] font-extrabold text-slate-400 hover:text-white transition">3 Tim</button>
+                        <button onclick="requestChangeGroupCount(4)" id="sb-grp-btn-4" class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-indigo-600 text-white transition">4 Tim</button>
+                    </div>
+                </div>
+                <div id="groups-list" class="grid grid-cols-2 lg:grid-cols-1 gap-2">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- DICE & TURN ACTION PANEL -->
+            <div class="bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-3.5 shrink-0 shadow-lg flex flex-col items-center justify-between">
+                <div class="w-full flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span id="turn-badge-dot" class="w-3.5 h-3.5 rounded-full bg-rose-500 animate-ping"></span>
+                        <span class="text-xs font-bold text-slate-300">Giliran: <strong id="turn-group-name" class="text-white text-sm">Kelompok 1</strong></span>
+                    </div>
+                    <span id="active-mode-badge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Mode Klasik</span>
+                </div>
+
+                <div class="flex items-center justify-around w-full py-1 gap-3">
+                    <!-- 3D Cube Dice -->
+                    <div class="scene-dice cursor-pointer" onclick="handleRollDice()" title="Ketuk Dadu">
+                        <div id="cube-dice" class="cube-dice">
+                            <!-- Face 1 -->
+                            <div class="cube-face face-1">
+                                <div></div><div></div><div></div>
+                                <div></div><div class="dot red"></div><div></div>
+                                <div></div><div></div><div></div>
+                            </div>
+                            <!-- Face 2 -->
+                            <div class="cube-face face-2">
+                                <div class="dot"></div><div></div><div></div>
+                                <div></div><div></div><div></div>
+                                <div></div><div></div><div class="dot"></div>
+                            </div>
+                            <!-- Face 3 -->
+                            <div class="cube-face face-3">
+                                <div class="dot"></div><div></div><div></div>
+                                <div></div><div class="dot"></div><div></div>
+                                <div></div><div></div><div class="dot"></div>
+                            </div>
+                            <!-- Face 4 -->
+                            <div class="cube-face face-4">
+                                <div class="dot red"></div><div></div><div class="dot red"></div>
+                                <div></div><div></div><div></div>
+                                <div class="dot red"></div><div></div><div class="dot red"></div>
+                            </div>
+                            <!-- Face 5 -->
+                            <div class="cube-face face-5">
+                                <div class="dot"></div><div></div><div class="dot"></div>
+                                <div></div><div class="dot"></div><div></div>
+                                <div class="dot"></div><div></div><div class="dot"></div>
+                            </div>
+                            <!-- Face 6 -->
+                            <div class="cube-face face-6">
+                                <div class="dot"></div><div></div><div class="dot"></div>
+                                <div class="dot"></div><div></div><div class="dot"></div>
+                                <div class="dot"></div><div></div><div class="dot"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Big Touch-Friendly Roll Button -->
+                    <div class="flex-1 flex flex-col gap-1.5">
+                        <button id="btn-roll-dice" onclick="handleRollDice()" class="w-full py-4 px-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-base rounded-2xl shadow-xl shadow-indigo-600/30 active:scale-95 transition flex items-center justify-center gap-2 border border-indigo-400/30">
+                            <i class="fa-solid fa-dice text-xl"></i>
+                            <span>KOCOK DADU</span>
+                        </button>
+                        <div class="grid grid-cols-2 gap-1.5 text-[11px] text-slate-400 pt-0.5">
+                            <select id="quick-category-select" onchange="changeCategoryFilter(this.value)" class="bg-slate-800 text-emerald-300 font-bold rounded-lg px-2 py-1 border border-slate-700 focus:outline-none truncate" title="Filter Materi">
+                                <option value="ALL">Semua Materi</option>
+                                <option value="Bilangan Bulat">Bilangan Bulat</option>
+                                <option value="Aljabar">Aljabar</option>
+                                <option value="PLSV">PLSV</option>
+                                <option value="Perbandingan">Perbandingan</option>
+                            </select>
+                            <select id="quick-difficulty-select" onchange="changeDifficultyFilter(this.value)" class="bg-slate-800 text-indigo-300 font-bold rounded-lg px-2 py-1 border border-slate-700 focus:outline-none truncate" title="Filter Kesulitan">
+                                <option value="ALL">Semua Level</option>
+                                <option value="Mudah">Mudah</option>
+                                <option value="Sedang">Sedang</option>
+                                <option value="Sulit">Sulit</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LEGEND & LIVE ACTIVITY LOG -->
+            <div class="flex-1 bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex flex-col overflow-hidden shadow-lg">
+                <!-- Mini Legend -->
+                <div class="grid grid-cols-3 gap-1.5 pb-2 mb-2 border-b border-slate-800 text-[10px] font-bold text-center">
+                    <div class="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-lg py-1">🪜 Tangga (Naik)</div>
+                    <div class="bg-rose-500/15 text-rose-300 border border-rose-500/30 rounded-lg py-1">🐍 Ular (Turun)</div>
+                    <div class="bg-amber-500/15 text-amber-300 border border-amber-500/30 rounded-lg py-1">⭐ Petak Kuis</div>
+                </div>
+
+                <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+                    <span>Riwayat Langkah</span>
+                    <span id="remaining-q-badge" class="text-[10px] font-bold text-indigo-300 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-500/30">Siap: 80/80</span>
+                </div>
+                <div id="activity-log" class="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                    <!-- Logs injected here -->
+                </div>
+            </div>
+
+        </aside>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 1: INTERACTIVE QUIZ MODAL (LARGE PID-FRIENDLY)                  -->
+    <!-- ===================================================================== -->
+    <div id="quiz-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-indigo-500/50 rounded-3xl max-w-3xl w-full p-6 md:p-8 shadow-2xl relative flex flex-col max-h-[92vh] overflow-y-auto">
+            
+            <!-- Modal Header -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-800 mb-5">
+                <div class="flex items-center gap-2.5">
+                    <span id="quiz-context-badge" class="px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        ⭐ Tantangan Petak Bintang
+                    </span>
+                    <span id="quiz-diff-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        Sedang
+                    </span>
+                    <span id="quiz-cat-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                        Bilangan Bulat
+                    </span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="quiz-team-label" class="text-sm font-extrabold text-white bg-slate-800 px-3.5 py-1.5 rounded-xl border border-slate-700">
+                        Kelompok 1
+                    </span>
+                    <div id="quiz-timer-box" class="text-sm font-extrabold text-amber-300 bg-amber-950/60 px-3.5 py-1.5 rounded-xl border border-amber-500/40 flex items-center gap-1.5">
+                        <i class="fa-solid fa-stopwatch"></i>
+                        <span id="quiz-timer-text">60s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Text -->
+            <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 mb-5">
+                <p id="quiz-question-text" class="text-lg md:text-xl font-bold text-white leading-relaxed">
+                    Memuat pertanyaan...
+                </p>
+            </div>
+
+            <!-- Options Grid (2x2 on PID for easy reach) -->
+            <div id="quiz-options-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-5">
+                <!-- Options injected here -->
+            </div>
+
+            <!-- Explanation / Solution Box (Shown after answering) -->
+            <div id="quiz-explanation-box" class="hidden rounded-2xl p-4 mb-5 border">
+                <div id="quiz-result-heading" class="text-base font-extrabold mb-1"></div>
+                <p id="quiz-explanation-text" class="text-sm text-slate-200 leading-relaxed"></p>
+            </div>
+
+            <!-- Action Footer -->
+            <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+                <span id="quiz-rule-hint" class="text-xs text-slate-400 italic">Pilih jawaban yang paling tepat!</span>
+                <div class="flex gap-3">
+                    <button id="btn-submit-answer" onclick="confirmQuizAnswer()" disabled class="px-6 py-3 bg-indigo-600 disabled:opacity-40 hover:bg-indigo-500 text-white font-extrabold rounded-xl shadow-lg transition text-sm">
+                        Kunci Jawaban
+                    </button>
+                    <button id="btn-continue-game" onclick="finishQuizTurn()" class="hidden px-7 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl shadow-lg transition text-sm flex items-center gap-2">
+                        <span>Lanjutkan Permainan</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 2: BANK SOAL & GENERATOR SOAL GURU                              -->
+    <!-- ===================================================================== -->
+    <div id="question-manager-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-5xl w-full h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+            
+            <!-- Header -->
+            <div class="px-6 py-4 bg-slate-800/90 border-b border-slate-700 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg">
+                        <i class="fa-solid fa-database"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-extrabold text-white">Bank Soal & Pengembangan Soal (Bilangan Bulat, Aljabar, PLSV & Perbandingan)</h2>
+                        <p class="text-xs text-slate-400">80 Soal Terverifikasi (20 Referensi × 4 Variasi). Tersimpan otomatis di browser, mendukung Generator 1-Klik & Ekspor/Impor JSON/CSV.</p>
+                    </div>
+                </div>
+                <button onclick="closeQuestionManager()" class="w-9 h-9 rounded-xl bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Action & Filter Bar -->
+            <div class="p-4 bg-slate-900 border-b border-slate-800 flex flex-col gap-3 shrink-0">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <!-- Difficulty Filters -->
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <button onclick="setManagerFilter('ALL')" id="mgr-filter-ALL" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white">Semua (<span id="mgr-count-all">80</span>)</button>
+                        <button onclick="setManagerFilter('Mudah')" id="mgr-filter-Mudah" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700">Mudah (<span id="mgr-count-mudah">0</span>)</button>
+                        <button onclick="setManagerFilter('Sedang')" id="mgr-filter-Sedang" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700">Sedang (<span id="mgr-count-sedang">0</span>)</button>
+                        <button onclick="setManagerFilter('Sulit')" id="mgr-filter-Sulit" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700">Sulit (<span id="mgr-count-sulit">0</span>)</button>
+                    </div>
+
+                    <!-- Teacher Tools -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="openQuestionFormModal()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-plus"></i> Tambah Soal
+                        </button>
+                        <div class="relative inline-block">
+                            <button onclick="toggleGeneratorDropdown()" class="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Generator <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                            </button>
+                            <div id="generator-dropdown" class="hidden absolute right-0 mt-1.5 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-30 overflow-hidden">
+                                <button onclick="generateAutoQuestion('Mudah')" class="w-full text-left px-4 py-2.5 text-xs font-bold text-emerald-300 hover:bg-slate-700 border-b border-slate-700/60">+ Generate Soal Mudah</button>
+                                <button onclick="generateAutoQuestion('Sedang')" class="w-full text-left px-4 py-2.5 text-xs font-bold text-amber-300 hover:bg-slate-700 border-b border-slate-700/60">+ Generate Soal Sedang</button>
+                                <button onclick="generateAutoQuestion('Sulit')" class="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-300 hover:bg-slate-700">+ Generate Soal Sulit</button>
+                            </div>
+                        </div>
+                        <button onclick="exportQuestionsJSON()" class="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 transition" title="Ekspor JSON">
+                            <i class="fa-solid fa-file-code text-indigo-400"></i> JSON
+                        </button>
+                        <button onclick="exportQuestionsCSV()" class="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 transition" title="Ekspor CSV Excel">
+                            <i class="fa-solid fa-file-csv text-emerald-400"></i> CSV
+                        </button>
+                        <label class="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 cursor-pointer transition" title="Impor JSON atau CSV">
+                            <i class="fa-solid fa-upload text-amber-400"></i> Impor
+                            <input type="file" accept=".json,.csv" onchange="importQuestionsFile(event)" class="hidden">
+                        </label>
+                        <button onclick="restoreDefaultQuestions()" class="px-2.5 py-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-bold rounded-xl transition" title="Pulihkan 80 Soal Standar">
+                            Reset 80
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search & Topic Filter Row -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
+                    <div class="md:col-span-5 relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input type="text" id="mgr-search-input" oninput="renderManagerQuestions()" placeholder="Cari kata kunci soal atau pembahasan..." class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="md:col-span-3">
+                        <select id="mgr-category-filter" onchange="renderManagerQuestions()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white font-semibold">
+                            <option value="ALL">Semua Materi (4 Topik Utama)</option>
+                            <option value="Bilangan Bulat">Materi: Bilangan Bulat</option>
+                            <option value="Aljabar">Materi: Bentuk Aljabar</option>
+                            <option value="PLSV">Materi: PLSV</option>
+                            <option value="Perbandingan">Materi: Perbandingan</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-4">
+                        <select id="mgr-topic-filter" onchange="renderManagerQuestions()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white font-semibold">
+                            <option value="ALL">Semua 20 Nomor Referensi (80 Soal)</option>
+                            <option value="1">Ref 1: Lambang Bilangan Bulat Posisi (1-4)</option>
+                            <option value="2">Ref 2: Penjumlahan Bilangan Bulat (5-8)</option>
+                            <option value="3">Ref 3: Sifat Komutatif Penjumlahan (9-12)</option>
+                            <option value="4">Ref 4: Pengurangan Bilangan Negatif (13-16)</option>
+                            <option value="5">Ref 5: Perpangkatan Bilangan Negatif (17-20)</option>
+                            <option value="6">Ref 6: Pembagian Bilangan Bulat (21-24)</option>
+                            <option value="7">Ref 7: Campuran Bagi & Kali Bulat (25-28)</option>
+                            <option value="8">Ref 8: Campuran dengan Tanda Kurung (29-32)</option>
+                            <option value="9">Ref 9: Bentuk Baku Perkalian Aljabar (33-36)</option>
+                            <option value="10">Ref 10: Substitusi Nilai Variabel (37-40)</option>
+                            <option value="11">Ref 11: Penyederhanaan Suku Sejenis (41-44)</option>
+                            <option value="12">Ref 12: Keliling Bangun Datar Aljabar (45-48)</option>
+                            <option value="13">Ref 13: Menentukan Koefisien Variabel (49-52)</option>
+                            <option value="14">Ref 14: Identifikasi Bentuk PLSV (53-56)</option>
+                            <option value="15">Ref 15: Penyelesaian PLSV Sederhana (57-60)</option>
+                            <option value="16">Ref 16: Sifat Kesetaraan PLSV (61-64)</option>
+                            <option value="17">Ref 17: Soal Cerita PLSV Bil. Berurutan (65-68)</option>
+                            <option value="18">Ref 18: Menyederhanakan Perbandingan (69-72)</option>
+                            <option value="19">Ref 19: Perbandingan Jumlah Diketahui (73-76)</option>
+                            <option value="20">Ref 20: Persamaan Fungsi Senilai (77-80)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Cards List -->
+            <div id="mgr-questions-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <!-- Populated via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 3: TAMBAH / EDIT SOAL FORM                                      -->
+    <!-- ===================================================================== -->
+    <div id="question-form-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 id="q-form-title" class="text-lg font-extrabold text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square text-emerald-400"></i>
+                <span>Tambah Soal Baru</span>
+            </h3>
+            <form onsubmit="saveQuestionForm(event)" class="space-y-3.5">
+                <input type="hidden" id="edit-q-id" value="">
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Materi / Topik</label>
+                        <select id="form-q-category" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                            <option value="Bilangan Bulat">Bilangan Bulat</option>
+                            <option value="Aljabar">Aljabar</option>
+                            <option value="PLSV">PLSV</option>
+                            <option value="Perbandingan">Perbandingan</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Tingkat Kesulitan</label>
+                        <select id="form-q-difficulty" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                            <option value="Mudah">Mudah</option>
+                            <option value="Sedang">Sedang</option>
+                            <option value="Sulit">Sulit</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Grup Topik (1-20)</label>
+                        <input type="number" id="form-q-topic" min="1" max="20" value="1" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">Pertanyaan</label>
+                    <textarea id="form-q-text" rows="3" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" placeholder="Tulis soal matematika di sini..."></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Opsi A</label>
+                        <input type="text" id="form-q-opt0" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Opsi B</label>
+                        <input type="text" id="form-q-opt1" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Opsi C</label>
+                        <input type="text" id="form-q-opt2" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Opsi D</label>
+                        <input type="text" id="form-q-opt3" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Kunci Jawaban</label>
+                        <select id="form-q-answer" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-emerald-300 font-bold">
+                            <option value="0">Opsi A</option>
+                            <option value="1">Opsi B</option>
+                            <option value="2">Opsi C</option>
+                            <option value="3">Opsi D</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Pembahasan Singkat</label>
+                        <input type="text" id="form-q-explanation" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" placeholder="Langkah penyelesaian...">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button type="button" onclick="closeQuestionFormModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl">Simpan Soal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 4: GAME SETTINGS MODAL                                          -->
+    <!-- ===================================================================== -->
+    <div id="settings-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-amber-400"></i>
+                    <span>Pengaturan Permainan PID</span>
+                </h3>
+                <button onclick="closeSettingsModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1.5">Jumlah Kelompok Bermain</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="selectSettingsGroupCount(2)" id="set-grp-btn-2" class="py-2.5 rounded-xl font-extrabold border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 transition">2 Kelompok</button>
+                        <button type="button" onclick="selectSettingsGroupCount(3)" id="set-grp-btn-3" class="py-2.5 rounded-xl font-extrabold border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 transition">3 Kelompok</button>
+                        <button type="button" onclick="selectSettingsGroupCount(4)" id="set-grp-btn-4" class="py-2.5 rounded-xl font-extrabold border border-indigo-400 bg-indigo-600 text-white shadow transition">4 Kelompok</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1.5">Kustomisasi Nama & Warna Kelompok Aktif</label>
+                    <div id="settings-teams-editor" class="space-y-2"></div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1.5">Mode Kuis Permainan</label>
+                    <select id="setting-quiz-mode" onchange="updateSettings()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-semibold">
+                        <option value="classic">Mode Klasik (Kuis di Tangga, Ular & Bintang)</option>
+                        <option value="everystep">Mode Tantangan Setiap Langkah (Kuis Setiap Lempar Dadu)</option>
+                    </select>
+                </div>
+            <div class="mt-6 flex justify-between items-center gap-2">
+                <button type="button" onclick="closeSettingsModal(); confirmResetGame();" class="px-4 py-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 font-bold rounded-xl text-xs">Mulai Ulang Babak</button>
+                <button onclick="closeSettingsModal()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs">Simpan & Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 4B: START / SETUP PILIH JUMLAH KELOMPOK                         -->
+    <!-- ===================================================================== -->
+    <div id="start-setup-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-indigo-500/50 rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white text-2xl shadow-lg">
+                    <i class="fa-solid fa-users-gear"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl md:text-2xl font-extrabold text-white">Setup Kompetisi Ular Tangga PID</h2>
+                    <p class="text-xs text-slate-400">Pilih jumlah kelompok yang bertanding (2, 3, atau 4 kelompok) sebelum memulai.</p>
+                </div>
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-xs font-extrabold uppercase tracking-wider text-indigo-300 mb-2">1. Pilih Jumlah Kelompok</label>
+                <div class="grid grid-cols-3 gap-3">
+                    <button type="button" onclick="selectSetupGroupCount(2)" id="setup-grp-2" class="p-4 rounded-2xl border-2 border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-center transition">
+                        <div class="text-2xl font-black text-white mb-0.5">2</div>
+                        <div class="text-xs font-bold text-slate-300">Kelompok</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Duel 1 vs 1</div>
+                    </button>
+                    <button type="button" onclick="selectSetupGroupCount(3)" id="setup-grp-3" class="p-4 rounded-2xl border-2 border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-center transition">
+                        <div class="text-2xl font-black text-white mb-0.5">3</div>
+                        <div class="text-xs font-bold text-slate-300">Kelompok</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Kompetisi 3 Tim</div>
+                    </button>
+                    <button type="button" onclick="selectSetupGroupCount(4)" id="setup-grp-4" class="p-4 rounded-2xl border-2 border-indigo-400 bg-indigo-950/70 text-center shadow-lg transition">
+                        <div class="text-2xl font-black text-white mb-0.5">4</div>
+                        <div class="text-xs font-bold text-indigo-200">Kelompok</div>
+                        <div class="text-[10px] text-indigo-300 mt-1">Kompetisi Penuh</div>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-xs font-extrabold uppercase tracking-wider text-indigo-300 mb-2">2. Nama Kelompok (Opsional)</label>
+                <div id="setup-teams-inputs" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800">
+                <div class="text-xs text-slate-400">
+                    Bank Soal Aktif: <strong class="text-emerald-400">80 Soal</strong> (Bilangan Bulat, Aljabar, PLSV, Perbandingan)
+                </div>
+                <button type="button" onclick="startGameFromSetup()" class="px-7 py-3.5 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold rounded-2xl shadow-xl text-sm flex items-center gap-2 transition active:scale-95">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Mulai Permainan</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 5: CUSTOM CONFIRM / TOAST MESSAGE BOX (NO alert/confirm)        -->
+    <!-- ===================================================================== -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl">
+            <div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-3 text-xl">
+                <i class="fa-solid fa-circle-question"></i>
+            </div>
+            <h4 id="confirm-title" class="text-base font-extrabold text-white mb-1">Konfirmasi</h4>
+            <p id="confirm-message" class="text-xs text-slate-300 mb-5">Apakah Anda yakin?</p>
+            <div class="flex justify-center gap-3">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">Batal</button>
+                <button id="confirm-yes-btn" class="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 6: WINNER CELEBRATION MODAL                                     -->
+    <!-- ===================================================================== -->
+    <div id="winner-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-amber-500/50 rounded-3xl max-w-lg w-full p-8 text-center shadow-2xl">
+            <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/40 animate-bounce">
+                <i class="fa-solid fa-trophy text-slate-950 text-4xl"></i>
+            </div>
+            <h2 id="winner-title" class="text-3xl font-extrabold text-white mb-2">Kelompok 1 Juara!</h2>
+            <p id="winner-subtitle" class="text-sm text-slate-300 mb-6">Berhasil mencapai petak 100 dengan skor luar biasa!</p>
+            <div id="winner-standings" class="bg-slate-950/80 rounded-2xl p-4 mb-6 border border-slate-800 space-y-2 text-left text-xs"></div>
+            <button onclick="executeResetGame()" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-extrabold rounded-2xl shadow-lg text-sm">
+                Mainkan Babak Baru
+            </button>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- JAVASCRIPT: AUDIO, DATA, BOARD ENGINE, SVG ART & QUIZ LOGIC           -->
+    <!-- ===================================================================== -->
+    <script>
+        // ---------------------------------------------------------------------
+        // 1. WEB AUDIO SYNTHESIZER (NO EXTERNAL AUDIO FILES REQUIRED)
+        // ---------------------------------------------------------------------
+        let audioEnabled = true;
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) audioCtx = new AudioContextClass();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playSFX(type) {
+            if (!audioEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const now = ctx.currentTime;
+
+                if (type === 'dice') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(240 + Math.random() * 220, now);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.06);
+                } else if (type === 'step') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(620, now + 0.08);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.09);
+                } else if (type === 'correct') {
+                    [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                        gain.gain.setValueAtTime(0.12, now + idx * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.25);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.08);
+                        osc.stop(now + idx * 0.08 + 0.25);
+                    });
+                } else if (type === 'wrong') {
+                    [260, 195].forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.14);
+                        gain.gain.setValueAtTime(0.1, now + idx * 0.14);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.14 + 0.28);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.14);
+                        osc.stop(now + idx * 0.14 + 0.28);
+                    });
+                } else if (type === 'ladder') {
+                    [330, 392, 493.88, 587.33, 659.25, 783.99].forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+                        gain.gain.setValueAtTime(0.1, now + idx * 0.06);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.2);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.06);
+                        osc.stop(now + idx * 0.06 + 0.2);
+                    });
+                } else if (type === 'snake') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(110, now + 0.55);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.56);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.56);
+                } else if (type === 'win') {
+                    [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5].forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+                        gain.gain.setValueAtTime(0.15, now + idx * 0.12);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.35);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.12);
+                        osc.stop(now + idx * 0.12 + 0.35);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('icon-audio');
+            const text = document.getElementById('text-audio');
+            if (audioEnabled) {
+                icon.className = "fa-solid fa-volume-high text-emerald-400";
+                text.innerText = "Suara";
+            } else {
+                icon.className = "fa-solid fa-volume-xmark text-rose-400";
+                text.innerText = "Bisu";
+            }
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // 2. VERIFIED 80 REFERENCE & DEVELOPED QUESTIONS (20 REFS x 4 VARIATIONS)
+        // ---------------------------------------------------------------------
+        const TOPIC_LABELS = {
+            1: "Ref 1: Lambang Bilangan Bulat Posisi",
+            2: "Ref 2: Penjumlahan Bilangan Bulat",
+            3: "Ref 3: Sifat Komutatif Penjumlahan",
+            4: "Ref 4: Pengurangan Bilangan Negatif",
+            5: "Ref 5: Perpangkatan Bilangan Negatif",
+            6: "Ref 6: Pembagian Bilangan Bulat",
+            7: "Ref 7: Campuran Bagi & Kali Bulat",
+            8: "Ref 8: Campuran dengan Tanda Kurung",
+            9: "Ref 9: Bentuk Baku Perkalian Aljabar",
+            10: "Ref 10: Substitusi Nilai Variabel",
+            11: "Ref 11: Penyederhanaan Suku Sejenis",
+            12: "Ref 12: Keliling Bangun Datar Aljabar",
+            13: "Ref 13: Menentukan Koefisien Variabel",
+            14: "Ref 14: Identifikasi Bentuk PLSV",
+            15: "Ref 15: Penyelesaian PLSV Sederhana",
+            16: "Ref 16: Sifat Kesetaraan PLSV",
+            17: "Ref 17: Soal Cerita PLSV Bil. Berurutan",
+            18: "Ref 18: Menyederhanakan Perbandingan",
+            19: "Ref 19: Perbandingan Jumlah Diketahui",
+            20: "Ref 20: Persamaan Fungsi Senilai"
+        };
+
+        const DEFAULT_QUESTIONS = [
+            // ================= REF 1 (Soal 1-4): Lambang Bilangan Bulat Posisi =================
+            {
+                id: 1, topicGroup: 1, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi A] Seekor kapal selam berada pada kedalaman 120 meter di bawah permukaan laut. Lambang bilangan bulat yang tepat untuk menyatakan posisi kapal selam tersebut adalah ...",
+                options: ["120", "-120", "+120", "1/120"],
+                answer: 1,
+                explanation: "Posisi di bawah permukaan laut (titik 0) dinyatakan dengan bilangan bulat negatif, sehingga kedalaman 120 meter ditulis -120."
+            },
+            {
+                id: 2, topicGroup: 1, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi B] Suhu udara di puncak pegunungan pada malam hari mencapai 8°C di bawah nol. Penulisan lambang bilangan bulat yang tepat untuk suhu tersebut adalah ...",
+                options: ["8", "+8", "-8", "0,8"],
+                answer: 2,
+                explanation: "Suhu di bawah 0°C dinyatakan menggunakan bilangan bulat negatif, yaitu -8."
+            },
+            {
+                id: 3, topicGroup: 1, category: "Bilangan Bulat", difficulty: "Sedang",
+                question: "[Versi C] Seorang penyelam mutiara berenang pada kedalaman 45 meter di bawah permukaan air laut, sedangkan burung camar terbang 18 meter di atas permukaan laut. Lambang bilangan bulat untuk posisi penyelam dan burung camar berturut-turut adalah ...",
+                options: ["45 dan -18", "-45 dan 18", "-45 dan -18", "45 dan 18"],
+                answer: 1,
+                explanation: "Di bawah permukaan laut bernilai negatif (-45) dan di atas permukaan laut bernilai positif (18)."
+            },
+            {
+                id: 4, topicGroup: 1, category: "Bilangan Bulat", difficulty: "Sulit",
+                question: "[Versi D] Sebuah pesawat terbang berada pada ketinggian 850 meter di atas permukaan laut, tepat di atas sebuah kapal selam yang berada 175 meter di bawah permukaan laut. Jika permukaan laut dianggap titik 0, penulisan posisi kapal selam dan jarak vertikal keduanya adalah ...",
+                options: ["-175 m dan 675 m", "175 m dan 1.025 m", "-175 m dan 1.025 m", "-850 m dan 675 m"],
+                answer: 2,
+                explanation: "Posisi kapal selam adalah -175 m. Jarak vertikal keduanya = 850 - (-175) = 850 + 175 = 1.025 meter."
+            },
+
+            // ================= REF 2 (Soal 5-8): Penjumlahan Bilangan Bulat Negatif & Positif =================
+            {
+                id: 5, topicGroup: 2, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi A] Hasil dari -18 + 27 adalah ...",
+                options: ["-45", "-9", "9", "45"],
+                answer: 2,
+                explanation: "Karena bilangan positif (27) lebih besar daripada bilangan negatif (-18), hasilnya positif: 27 - 18 = 9."
+            },
+            {
+                id: 6, topicGroup: 2, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi B] Hasil dari -34 + 19 adalah ...",
+                options: ["-53", "-15", "15", "53"],
+                answer: 1,
+                explanation: "Bilangan negatif (-34) memiliki nilai mutlak lebih besar dari 19, sehingga -34 + 19 = -(34 - 19) = -15."
+            },
+            {
+                id: 7, topicGroup: 2, category: "Bilangan Bulat", difficulty: "Sedang",
+                question: "[Versi C] Hasil dari 42 + (-65) adalah ...",
+                options: ["-107", "-23", "23", "107"],
+                answer: 1,
+                explanation: "42 + (-65) = 42 - 65 = -23."
+            },
+            {
+                id: 8, topicGroup: 2, category: "Bilangan Bulat", difficulty: "Sulit",
+                question: "[Versi D] Suhu awal di dalam ruang pendingin daging adalah -16°C. Ketika pintu ruang pendingin dibuka untuk pembersihan, suhunya naik sebesar 23°C. Suhu ruangan tersebut sekarang adalah ...",
+                options: ["-39°C", "-7°C", "7°C", "39°C"],
+                answer: 2,
+                explanation: "Suhu naik berarti ditambah: -16 + 23 = 7°C."
+            },
+
+            // ================= REF 3 (Soal 9-12): Sifat Komutatif Penjumlahan Bilangan Bulat =================
+            {
+                id: 9, topicGroup: 3, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi A] Bentuk yang setara dengan -19 + 34 berdasarkan sifat komutatif adalah ...",
+                options: ["34 + (-19)", "-34 + 19", "19 + (-34)", "-19 - 34"],
+                answer: 0,
+                explanation: "Sifat komutatif penjumlahan menyatakan a + b = b + a, sehingga -19 + 34 = 34 + (-19)."
+            },
+            {
+                id: 10, topicGroup: 3, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi B] Berdasarkan sifat komutatif penjumlahan, bentuk yang senilai dengan 28 + (-45) adalah ...",
+                options: ["-28 + 45", "-45 + 28", "45 + (-28)", "-45 - 28"],
+                answer: 1,
+                explanation: "Dengan menukar posisi kedua suku (a + b = b + a), diperoleh 28 + (-45) = -45 + 28."
+            },
+            {
+                id: 11, topicGroup: 3, category: "Bilangan Bulat", difficulty: "Sedang",
+                question: "[Versi C] Diketahui -52 + n = 37 + (-52). Nilai n yang memenuhi persamaan berdasarkan sifat komutatif penjumlahan adalah ...",
+                options: ["-52", "-37", "37", "52"],
+                answer: 2,
+                explanation: "Sesuai sifat komutatif a + b = b + a, maka -52 + 37 = 37 + (-52), sehingga nilai n = 37."
+            },
+            {
+                id: 12, topicGroup: 3, category: "Bilangan Bulat", difficulty: "Sulit",
+                question: "[Versi D] Pada operasi (-25) + 64 + (-75), jika digunakan sifat komutatif dan asosiatif agar mudah dihitung, pengelompokan yang paling tepat dan hasilnya adalah ...",
+                options: ["[(-25) + (-75)] + 64 = -36", "[(-25) + 64] + (-75) = 36", "[64 + (-75)] + (-25) = -164", "[(-25) + (-75)] + 64 = 164"],
+                answer: 0,
+                explanation: "Tukarkan posisi 64 dan (-75) menggunakan sifat komutatif: [(-25) + (-75)] + 64 = -100 + 64 = -36."
+            },
+
+            // ================= REF 4 (Soal 13-16): Pengurangan dengan Bilangan Bulat Negatif =================
+            {
+                id: 13, topicGroup: 4, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi A] Hasil dari 24 - (-9) adalah ...",
+                options: ["15", "33", "-15", "-33"],
+                answer: 1,
+                explanation: "Mengurangi dengan bilangan negatif sama dengan menjumlahkan lawannya: 24 - (-9) = 24 + 9 = 33."
+            },
+            {
+                id: 14, topicGroup: 4, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi B] Hasil dari 35 - (-17) adalah ...",
+                options: ["-52", "-18", "18", "52"],
+                answer: 3,
+                explanation: "35 - (-17) = 35 + 17 = 52."
+            },
+            {
+                id: 15, topicGroup: 4, category: "Bilangan Bulat", difficulty: "Sedang",
+                question: "[Versi C] Hasil dari -29 - (-14) adalah ...",
+                options: ["-43", "-15", "15", "43"],
+                answer: 1,
+                explanation: "-29 - (-14) = -29 + 14 = -15."
+            },
+            {
+                id: 16, topicGroup: 4, category: "Bilangan Bulat", difficulty: "Sulit",
+                question: "[Versi D] Suhu di Kota London pada siang hari adalah 14°C, sedangkan pada malam hari turun menjadi -6°C. Selisih suhu antara siang dan malam hari di kota tersebut adalah ...",
+                options: ["8°C", "20°C", "-8°C", "-20°C"],
+                answer: 1,
+                explanation: "Selisih suhu = Suhu tertinggi - Suhu terendah = 14 - (-6) = 14 + 6 = 20°C."
+            },
+
+            // ================= REF 5 (Soal 17-20): Perpangkatan Bilangan Bulat Negatif =================
+            {
+                id: 17, topicGroup: 5, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi A] Hasil dari (-2)⁵ adalah ...",
+                options: ["-32", "-10", "10", "32"],
+                answer: 0,
+                explanation: "(-2)⁵ = (-2) × (-2) × (-2) × (-2) × (-2) = -32 (bilangan negatif berpangkat ganjil hasilnya negatif)."
+            },
+            {
+                id: 18, topicGroup: 5, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi B] Hasil dari (-3)⁴ adalah ...",
+                options: ["-81", "-12", "12", "81"],
+                answer: 3,
+                explanation: "(-3)⁴ = (-3) × (-3) × (-3) × (-3) = 81 (bilangan negatif berpangkat genap hasilnya positif)."
+            },
+            {
+                id: 19, topicGroup: 5, category: "Bilangan Bulat", difficulty: "Sedang",
+                question: "[Versi C] Hasil dari (-4)³ + (-5)² adalah ...",
+                options: ["-89", "-39", "39", "89"],
+                answer: 1,
+                explanation: "(-4)³ = -64 dan (-5)² = 25, sehingga -64 + 25 = -39."
+            },
+            {
+                id: 20, topicGroup: 5, category: "Bilangan Bulat", difficulty: "Sulit",
+                question: "[Versi D] Nilai dari (-2)⁶ - (-3)³ adalah ...",
+                options: ["37", "91", "-37", "-91"],
+                answer: 1,
+                explanation: "(-2)⁶ = 64 dan (-3)³ = -27. Maka 64 - (-27) = 64 + 27 = 91."
+            },
+
+            // ================= REF 6 (Soal 21-24): Pembagian Bilangan Bulat Negatif dengan Positif =================
+            {
+                id: 21, topicGroup: 6, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi A] Hasil dari -168 : 14 adalah ...",
+                options: ["-12", "12", "-154", "154"],
+                answer: 0,
+                explanation: "Bilangan negatif dibagi bilangan positif menghasilkan bilangan negatif: -(168 : 14) = -12."
+            },
+            {
+                id: 22, topicGroup: 6, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi B] Hasil dari -195 : 15 adalah ...",
+                options: ["-15", "-13", "13", "15"],
+                answer: 1,
+                explanation: "-(195 : 15) = -13."
+            },
+            {
+                id: 23, topicGroup: 6, category: "Bilangan Bulat", difficulty: "Sedang",
+                question: "[Versi C] Hasil dari 252 : (-18) adalah ...",
+                options: ["-16", "-14", "14", "16"],
+                answer: 1,
+                explanation: "Positif dibagi negatif menghasilkan negatif: -(252 : 18) = -14."
+            },
+            {
+                id: 24, topicGroup: 6, category: "Bilangan Bulat", difficulty: "Sulit",
+                question: "[Versi D] Seorang pedagang mengalami total kerugian sebesar Rp224.000,00 selama 16 hari berjualan secara merata setiap harinya. Jika kerugian dinyatakan dengan bilangan negatif, rata-rata kerugian pedagang tersebut per hari adalah ...",
+                options: ["-Rp12.000,00", "-Rp14.000,00", "Rp14.000,00", "-Rp16.000,00"],
+                answer: 1,
+                explanation: "Rata-rata per hari = -224.000 : 16 = -Rp14.000,00."
+            },
+
+            // ================= REF 7 (Soal 25-28): Operasi Hitung Campuran Pembagian & Perkalian =================
+            {
+                id: 25, topicGroup: 7, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi A] Hasil dari -36 : 9 × (-4) adalah ...",
+                options: ["-16", "16", "-1", "1"],
+                answer: 1,
+                explanation: "Pembagian dan perkalian setara, dikerjakan dari kiri: (-36 : 9) × (-4) = (-4) × (-4) = 16."
+            },
+            {
+                id: 26, topicGroup: 7, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi B] Hasil dari -48 : 6 × (-3) adalah ...",
+                options: ["-24", "24", "-8", "8"],
+                answer: 1,
+                explanation: "Kerjakan dari kiri ke kanan: (-48 : 6) × (-3) = (-8) × (-3) = 24."
+            },
+            {
+                id: 27, topicGroup: 7, category: "Bilangan Bulat", difficulty: "Sedang",
+                question: "[Versi C] Hasil dari 63 : (-7) × 5 adalah ...",
+                options: ["-45", "-9", "9", "45"],
+                answer: 0,
+                explanation: "Kerjakan dari kiri: (63 : (-7)) × 5 = (-9) × 5 = -45."
+            },
+            {
+                id: 28, topicGroup: 7, category: "Bilangan Bulat", difficulty: "Sulit",
+                question: "[Versi D] Hasil dari -120 : (-15) × (-6) adalah ...",
+                options: ["-48", "-24", "24", "48"],
+                answer: 0,
+                explanation: "Kerjakan dari kiri: (-120 : (-15)) × (-6) = 8 × (-6) = -48."
+            },
+
+            // ================= REF 8 (Soal 29-32): Operasi Hitung Campuran dengan Tanda Kurung =================
+            {
+                id: 29, topicGroup: 8, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi A] Hasil dari 25 + (-3) × (10 - 4) adalah ...",
+                options: ["132", "-132", "7", "43"],
+                answer: 2,
+                explanation: "Kerjakan dalam kurung dulu: 10 - 4 = 6. Lalu perkalian: (-3) × 6 = -18. Terakhir: 25 + (-18) = 7."
+            },
+            {
+                id: 30, topicGroup: 8, category: "Bilangan Bulat", difficulty: "Mudah",
+                question: "[Versi B] Hasil dari 30 + (-4) × (12 - 7) adalah ...",
+                options: ["130", "10", "-10", "50"],
+                answer: 1,
+                explanation: "12 - 7 = 5 → (-4) × 5 = -20 → 30 + (-20) = 10."
+            },
+            {
+                id: 31, topicGroup: 8, category: "Bilangan Bulat", difficulty: "Sedang",
+                question: "[Versi C] Hasil dari -18 + 6 × (15 - 22) adalah ...",
+                options: ["84", "-60", "60", "-84"],
+                answer: 1,
+                explanation: "15 - 22 = -7 → 6 × (-7) = -42 → -18 + (-42) = -60."
+            },
+            {
+                id: 32, topicGroup: 8, category: "Bilangan Bulat", difficulty: "Sulit",
+                question: "[Versi D] Dalam sebuah lomba matematika, jawaban benar mendapat skor 4, salah mendapat skor -2, dan tidak dijawab mendapat skor -1. Dari 30 soal, Riko menjawab 22 soal benar dan 5 soal salah (sisanya tidak dijawab). Total skor Riko adalah ...",
+                options: ["75", "78", "81", "88"],
+                answer: 0,
+                explanation: "Tidak dijawab = 30 - (22 + 5) = 3 soal. Total skor = (22 × 4) + (5 × (-2)) + (3 × (-1)) = 88 - 10 - 3 = 75."
+            },
+
+            // ================= REF 9 (Soal 33-36): Bentuk Singkat/Baku Perkalian Aljabar =================
+            {
+                id: 33, topicGroup: 9, category: "Aljabar", difficulty: "Mudah",
+                question: "[Versi A] Bentuk singkat/baku dari p × (-7) × q adalah ...",
+                options: ["-7pq", "pq - 7", "-7 + p + q", "p(-7)q"],
+                answer: 0,
+                explanation: "Dalam penulisan aljabar baku, koefisien angka ditulis di depan variabel tanpa tanda kali dan berurutan abjad: -7pq."
+            },
+            {
+                id: 34, topicGroup: 9, category: "Aljabar", difficulty: "Mudah",
+                question: "[Versi B] Bentuk singkat/baku dari y × (-5) × x adalah ...",
+                options: ["-5yx", "-5xy", "xy - 5", "-5 + x + y"],
+                answer: 1,
+                explanation: "Koefisien -5 diletakkan di depan, dan variabel diurutkan sesuai abjad (x lalu y), menjadi -5xy."
+            },
+            {
+                id: 35, topicGroup: 9, category: "Aljabar", difficulty: "Sedang",
+                question: "[Versi C] Bentuk sederhana dan baku dari (-3) × a × b × (-4) × a adalah ...",
+                options: ["-12a²b", "12a²b", "12ab²", "-7a²b"],
+                answer: 1,
+                explanation: "(-3) × (-4) = 12, sedangkan a × a = a², lalu dikali b sehingga bentuk bakunya adalah 12a²b."
+            },
+            {
+                id: 36, topicGroup: 9, category: "Aljabar", difficulty: "Sulit",
+                question: "[Versi D] Bentuk aljabar baku dari perkalian m × (-1) × n × m × 6 × n adalah ...",
+                options: ["-6mn", "-6m²n²", "6m²n²", "-5m²n²"],
+                answer: 1,
+                explanation: "(-1) × 6 = -6, m × m = m², dan n × n = n², sehingga hasilnya -6m²n²."
+            },
+
+            // ================= REF 10 (Soal 37-40): Substitusi Nilai Variabel Bentuk Aljabar =================
+            {
+                id: 37, topicGroup: 10, category: "Aljabar", difficulty: "Mudah",
+                question: "[Versi A] Jika m = -4 dan n = 5, maka nilai dari 3m - 2n adalah ...",
+                options: ["2", "-22", "-2", "22"],
+                answer: 1,
+                explanation: "3(-4) - 2(5) = -12 - 10 = -22."
+            },
+            {
+                id: 38, topicGroup: 10, category: "Aljabar", difficulty: "Mudah",
+                question: "[Versi B] Jika p = 3 dan q = -2, maka nilai dari 4p + 5q adalah ...",
+                options: ["2", "22", "-2", "-22"],
+                answer: 0,
+                explanation: "4(3) + 5(-2) = 12 - 10 = 2."
+            },
+            {
+                id: 39, topicGroup: 10, category: "Aljabar", difficulty: "Sedang",
+                question: "[Versi C] Diketahui x = -3 dan y = -4. Nilai dari 2x - 3y adalah ...",
+                options: ["-18", "-6", "6", "18"],
+                answer: 2,
+                explanation: "2(-3) - 3(-4) = -6 - (-12) = -6 + 12 = 6."
+            },
+            {
+                id: 40, topicGroup: 10, category: "Aljabar", difficulty: "Sulit",
+                question: "[Versi D] Jika a = -2 dan b = 3, maka nilai dari a² - 3ab + b² adalah ...",
+                options: ["-5", "13", "31", "23"],
+                answer: 2,
+                explanation: "(-2)² - 3(-2)(3) + (3)² = 4 - (-18) + 9 = 4 + 18 + 9 = 31."
+            },
+
+            // ================= REF 11 (Soal 41-44): Penyederhanaan Suku-Suku Sejenis Aljabar =================
+            {
+                id: 41, topicGroup: 11, category: "Aljabar", difficulty: "Mudah",
+                question: "[Versi A] Bentuk sederhana dari 9a - 5b - 4a + 9b adalah ...",
+                options: ["5a - 4b", "13a + 4b", "5a + 4b", "-5a + 4b"],
+                answer: 2,
+                explanation: "Kelompokkan suku sejenis: (9a - 4a) + (-5b + 9b) = 5a + 4b."
+            },
+            {
+                id: 42, topicGroup: 11, category: "Aljabar", difficulty: "Mudah",
+                question: "[Versi B] Bentuk sederhana dari 7x + 4y - 2x - 9y adalah ...",
+                options: ["5x - 5y", "5x + 5y", "9x - 5y", "5x - 13y"],
+                answer: 0,
+                explanation: "(7x - 2x) + (4y - 9y) = 5x - 5y."
+            },
+            {
+                id: 43, topicGroup: 11, category: "Aljabar", difficulty: "Sedang",
+                question: "[Versi C] Bentuk sederhana dari 6p - 8q + 5 - 9p + 3q - 11 adalah ...",
+                options: ["-3p - 5q - 6", "3p - 5q - 6", "-3p + 5q - 6", "-3p - 11q - 6"],
+                answer: 0,
+                explanation: "(6p - 9p) + (-8q + 3q) + (5 - 11) = -3p - 5q - 6."
+            },
+            {
+                id: 44, topicGroup: 11, category: "Aljabar", difficulty: "Sulit",
+                question: "[Versi D] Hasil pengurangan (5x - 3y + 7) dari (8x + 2y - 4) adalah ...",
+                options: ["-3x - 5y + 11", "3x + 5y - 11", "3x - y + 3", "13x - y + 3"],
+                answer: 1,
+                explanation: "'Pengurangan A dari B' berarti B - A: (8x + 2y - 4) - (5x - 3y + 7) = (8x - 5x) + (2y + 3y) + (-4 - 7) = 3x + 5y - 11."
+            },
+
+            // ================= REF 12 (Soal 45-48): Keliling Bangun Datar dalam Bentuk Aljabar =================
+            {
+                id: 45, topicGroup: 12, category: "Aljabar", difficulty: "Mudah",
+                question: "[Versi A] Sebuah persegi panjang memiliki panjang (3x + 2) cm dan lebar (x - 1) cm. Keliling persegi panjang tersebut adalah ...",
+                options: ["(8x + 2) cm", "(4x + 1) cm", "(8x + 4) cm", "(6x + 2) cm"],
+                answer: 0,
+                explanation: "Keliling = 2(p + l) = 2[(3x + 2) + (x - 1)] = 2(4x + 1) = (8x + 2) cm."
+            },
+            {
+                id: 46, topicGroup: 12, category: "Aljabar", difficulty: "Mudah",
+                question: "[Versi B] Sebuah persegi panjang memiliki panjang (4x + 3) cm dan lebar (2x - 1) cm. Keliling persegi panjang tersebut dalam bentuk x adalah ...",
+                options: ["(6x + 2) cm", "(12x + 4) cm", "(12x + 8) cm", "(8x + 4) cm"],
+                answer: 1,
+                explanation: "Keliling = 2[(4x + 3) + (2x - 1)] = 2(6x + 2) = (12x + 4) cm."
+            },
+            {
+                id: 47, topicGroup: 12, category: "Aljabar", difficulty: "Sedang",
+                question: "[Versi C] Sebuah segitiga memiliki panjang sisi-sisi (2x + 1) cm, (3x - 2) cm, dan (x + 5) cm. Keliling segitiga tersebut adalah ...",
+                options: ["(6x + 4) cm", "(6x + 8) cm", "(5x + 4) cm", "(6x - 4) cm"],
+                answer: 0,
+                explanation: "Keliling segitiga = jumlah semua sisi = (2x + 1) + (3x - 2) + (x + 5) = (6x + 4) cm."
+            },
+            {
+                id: 48, topicGroup: 12, category: "Aljabar", difficulty: "Sulit",
+                question: "[Versi D] Sebuah kebun berbentuk persegi panjang memiliki panjang (5x - 2) meter dan lebar (2x + 3) meter. Jika x = 4, keliling kebun tersebut adalah ...",
+                options: ["29 meter", "58 meter", "54 meter", "62 meter"],
+                answer: 1,
+                explanation: "Keliling = 2[(5x - 2) + (2x + 3)] = 2(7x + 1) = 14x + 2. Untuk x = 4 → 14(4) + 2 = 56 + 2 = 58 meter."
+            },
+
+            // ================= REF 13 (Soal 49-52): Menentukan Koefisien Variabel Bentuk Aljabar =================
+            {
+                id: 49, topicGroup: 13, category: "Aljabar", difficulty: "Mudah",
+                question: "[Versi A] Koefisien dari y pada bentuk aljabar 8 + 4x - 6y adalah ...",
+                options: ["8", "4", "6", "-6"],
+                answer: 3,
+                explanation: "Suku yang memuat variabel y adalah -6y, sehingga koefisien dari y adalah -6."
+            },
+            {
+                id: 50, topicGroup: 13, category: "Aljabar", difficulty: "Mudah",
+                question: "[Versi B] Koefisien dari x pada bentuk aljabar 12 - 9x + 5y adalah ...",
+                options: ["12", "-9", "9", "5"],
+                answer: 1,
+                explanation: "Suku yang memuat variabel x adalah -9x, sehingga koefisiennya adalah -9."
+            },
+            {
+                id: 51, topicGroup: 13, category: "Aljabar", difficulty: "Sedang",
+                question: "[Versi C] Pada bentuk aljabar 3x² - 7x - y + 10, koefisien dari y dan konstanta berturut-turut adalah ...",
+                options: ["1 dan 10", "-1 dan 10", "-7 dan 10", "-1 dan -10"],
+                answer: 1,
+                explanation: "Suku -y sama dengan -1y sehingga koefisien y adalah -1, dan konstantanya (bilangan tanpa variabel) adalah 10."
+            },
+            {
+                id: 52, topicGroup: 13, category: "Aljabar", difficulty: "Sulit",
+                question: "[Versi D] Jumlah dari koefisien x dan koefisien y pada bentuk aljabar 4x² - 8x + 3y - 15 adalah ...",
+                options: ["-4", "-5", "11", "-11"],
+                answer: 1,
+                explanation: "Koefisien x adalah -8 dan koefisien y adalah 3. Jumlah keduanya = -8 + 3 = -5."
+            },
+
+            // ================= REF 14 (Soal 53-56): Mengidentifikasi Persamaan Linear Satu Variabel (PLSV) =================
+            {
+                id: 53, topicGroup: 14, category: "PLSV", difficulty: "Mudah",
+                question: "[Versi A] Di antara bentuk-bentuk berikut, yang merupakan Persamaan Linear Satu Variabel (PLSV) adalah ...",
+                options: ["4a - 2b = 10", "a² - 9 = 0", "5a + 3 = 18", "3a - 4 < 11"],
+                answer: 2,
+                explanation: "5a + 3 = 18 menggunakan tanda sama dengan (=), hanya memiliki satu variabel (a), dan variabelnya berpangkat satu."
+            },
+            {
+                id: 54, topicGroup: 14, category: "PLSV", difficulty: "Mudah",
+                question: "[Versi B] Manakah di antara kalimat terbuka berikut yang merupakan Persamaan Linear Satu Variabel (PLSV)?",
+                options: ["2x + y = 7", "x² + 4 = 13", "3x - 5 = 16", "2x + 1 > 9"],
+                answer: 2,
+                explanation: "3x - 5 = 16 adalah persamaan (=) dengan satu variabel berpangkat satu (x)."
+            },
+            {
+                id: 55, topicGroup: 14, category: "PLSV", difficulty: "Sedang",
+                question: "[Versi C] Bentuk 2m + 7 = 5m - 8 termasuk Persamaan Linear Satu Variabel karena ...",
+                options: ["Memiliki dua suku di ruas kiri", "Menggunakan tanda '=' dengan satu variabel berpangkat satu", "Memiliki variabel m di kedua ruas", "Hasil penyelesaiannya bilangan bulat"],
+                answer: 1,
+                explanation: "Meskipun variabel m muncul di kedua ruas, hanya ada satu jenis variabel (m) berpangkat satu dan dihubungkan tanda '='."
+            },
+            {
+                id: 56, topicGroup: 14, category: "PLSV", difficulty: "Sulit",
+                question: "[Versi D] Di antara persamaan berikut: (i) 3p - 6 = 9, (ii) 2p + 3q = 12, (iii) p(p + 2) = 15, (iv) 4p - 1 = 2p + 7. Yang merupakan PLSV adalah ...",
+                options: ["(i) dan (ii)", "(i) dan (iv)", "(ii) dan (iii)", "(iii) dan (iv)"],
+                answer: 1,
+                explanation: "(i) 3p - 6 = 9 dan (iv) 4p - 1 = 2p + 7 hanya memuat satu variabel p berpangkat satu. (ii) dua variabel, (iii) kuadrat."
+            },
+
+            // ================= REF 15 (Soal 57-60): Menyelesaikan PLSV Sederhana =================
+            {
+                id: 57, topicGroup: 15, category: "PLSV", difficulty: "Mudah",
+                question: "[Versi A] Penyelesaian dari persamaan x + 12 = 5 adalah ...",
+                options: ["17", "7", "-17", "-7"],
+                answer: 3,
+                explanation: "x + 12 = 5 → x = 5 - 12 → x = -7."
+            },
+            {
+                id: 58, topicGroup: 15, category: "PLSV", difficulty: "Mudah",
+                question: "[Versi B] Penyelesaian dari persamaan y + 15 = 6 adalah ...",
+                options: ["21", "9", "-9", "-21"],
+                answer: 2,
+                explanation: "y = 6 - 15 → y = -9."
+            },
+            {
+                id: 59, topicGroup: 15, category: "PLSV", difficulty: "Sedang",
+                question: "[Versi C] Nilai x yang memenuhi persamaan 2x + 11 = 3 adalah ...",
+                options: ["-7", "-4", "4", "7"],
+                answer: 1,
+                explanation: "2x = 3 - 11 → 2x = -8 → x = -8 : 2 = -4."
+            },
+            {
+                id: 60, topicGroup: 15, category: "PLSV", difficulty: "Sulit",
+                question: "[Versi D] Penyelesaian dari persamaan 4x + 9 = x - 6 adalah ...",
+                options: ["-5", "-1", "1", "5"],
+                answer: 0,
+                explanation: "4x - x = -6 - 9 → 3x = -15 → x = -5."
+            },
+
+            // ================= REF 16 (Soal 61-64): Sifat Kesetaraan PLSV =================
+            {
+                id: 61, topicGroup: 16, category: "PLSV", difficulty: "Mudah",
+                question: "[Versi A] Agar persamaan 4x = 28 tetap setara, kedua ruas harus ...",
+                options: ["Dibagi 4", "Dikurangi 4", "Ditambah 4", "Dikali 28"],
+                answer: 0,
+                explanation: "Untuk mendapatkan nilai x dari 4x = 28, kedua ruas dibagi dengan koefisien x yaitu 4 (4x : 4 = 28 : 4 → x = 7)."
+            },
+            {
+                id: 62, topicGroup: 16, category: "PLSV", difficulty: "Mudah",
+                question: "[Versi B] Langkah pertama yang tepat untuk menyelesaikan persamaan x - 9 = 14 menggunakan sifat kesetaraan adalah kedua ruas ...",
+                options: ["Dikurangi 9", "Ditambah 9", "Dibagi 9", "Dikali 9"],
+                answer: 1,
+                explanation: "Untuk menghilangkan -9 di ruas kiri, kedua ruas ditambah 9: x - 9 + 9 = 14 + 9 → x = 23."
+            },
+            {
+                id: 63, topicGroup: 16, category: "PLSV", difficulty: "Sedang",
+                question: "[Versi C] Agar persamaan 3x - 5 = 16 menjadi bentuk 3x = 21, perlakuan yang diberikan pada kedua ruas adalah ...",
+                options: ["Kedua ruas dikurangi 5", "Kedua ruas ditambah 5", "Kedua ruas dibagi 3", "Kedua ruas dikali 3"],
+                answer: 1,
+                explanation: "3x - 5 + 5 = 16 + 5 menghasilkan persamaan ekuivalen 3x = 21."
+            },
+            {
+                id: 64, topicGroup: 16, category: "PLSV", difficulty: "Sulit",
+                question: "[Versi D] Diketahui persamaan (2/3)x = 12. Agar diperoleh nilai x secara langsung dalam satu langkah kesetaraan, kedua ruas dikalikan dengan ...",
+                options: ["2/3", "3/2", "12", "-2/3"],
+                answer: 1,
+                explanation: "Kalikan kedua ruas dengan kebalikan dari 2/3 yaitu 3/2: (3/2) × (2/3)x = 12 × (3/2) → x = 18."
+            },
+
+            // ================= REF 17 (Soal 65-68): Soal Cerita PLSV Dua Bilangan Bulat Berurutan =================
+            {
+                id: 65, topicGroup: 17, category: "PLSV", difficulty: "Mudah",
+                question: "[Versi A] Jumlah dua bilangan bulat berurutan adalah 45. Bilangan terkecil dari kedua bilangan tersebut adalah ...",
+                options: ["21", "22", "23", "24"],
+                answer: 1,
+                explanation: "Misal bilangan terkecil = n, maka bilangan berikutnya = n + 1. n + (n + 1) = 45 → 2n + 1 = 45 → 2n = 44 → n = 22."
+            },
+            {
+                id: 66, topicGroup: 17, category: "PLSV", difficulty: "Mudah",
+                question: "[Versi B] Jumlah dua bilangan bulat berurutan adalah 63. Bilangan terkecil dari kedua bilangan tersebut adalah ...",
+                options: ["30", "31", "32", "33"],
+                answer: 1,
+                explanation: "n + (n + 1) = 63 → 2n = 62 → n = 31."
+            },
+            {
+                id: 67, topicGroup: 17, category: "PLSV", difficulty: "Sedang",
+                question: "[Versi C] Jumlah dua bilangan genap berurutan adalah 54. Bilangan terbesar dari kedua bilangan tersebut adalah ...",
+                options: ["24", "26", "28", "30"],
+                answer: 2,
+                explanation: "Bilangan genap berurutan berselisih 2: n + (n + 2) = 54 → 2n = 52 → n = 26. Bilangan terbesar = 26 + 2 = 28."
+            },
+            {
+                id: 68, topicGroup: 17, category: "PLSV", difficulty: "Sulit",
+                question: "[Versi D] Jumlah tiga bilangan bulat berurutan adalah 72. Hasil kali bilangan terkecil dan terbesarnya adalah ...",
+                options: ["552", "575", "576", "600"],
+                answer: 1,
+                explanation: "(n - 1) + n + (n + 1) = 72 → 3n = 72 → n = 24. Ketiga bilangan adalah 23, 24, 25. Hasil kali terkecil & terbesar = 23 × 25 = 575."
+            },
+
+            // ================= REF 18 (Soal 69-72): Menyederhanakan Perbandingan Dua Besaran =================
+            {
+                id: 69, topicGroup: 18, category: "Perbandingan", difficulty: "Mudah",
+                question: "[Versi A] Bentuk paling sederhana dari perbandingan 36 : 48 adalah ...",
+                options: ["3 : 4", "2 : 3", "6 : 8", "4 : 5"],
+                answer: 0,
+                explanation: "FPB dari 36 dan 48 adalah 12. Bagi kedua bilangan dengan 12: (36 : 12) : (48 : 12) = 3 : 4."
+            },
+            {
+                id: 70, topicGroup: 18, category: "Perbandingan", difficulty: "Mudah",
+                question: "[Versi B] Bentuk paling sederhana dari perbandingan 45 : 75 adalah ...",
+                options: ["2 : 3", "3 : 5", "5 : 7", "9 : 15"],
+                answer: 1,
+                explanation: "Bagi kedua bilangan dengan FPB-nya yaitu 15: (45 : 15) : (75 : 15) = 3 : 5."
+            },
+            {
+                id: 71, topicGroup: 18, category: "Perbandingan", difficulty: "Sedang",
+                question: "[Versi C] Bentuk paling sederhana dari perbandingan 75 cm : 2,5 m adalah ...",
+                options: ["3 : 10", "30 : 1", "3 : 1", "15 : 5"],
+                answer: 0,
+                explanation: "Samakan satuan ke cm: 2,5 m = 250 cm. Perbandingannya 75 : 250, dibagi 25 menjadi 3 : 10."
+            },
+            {
+                id: 72, topicGroup: 18, category: "Perbandingan", difficulty: "Sulit",
+                question: "[Versi D] Bentuk paling sederhana dari perbandingan waktu 45 menit : 1,5 jam adalah ...",
+                options: ["1 : 2", "1 : 3", "3 : 4", "2 : 3"],
+                answer: 0,
+                explanation: "Ubah 1,5 jam menjadi menit: 1,5 × 60 = 90 menit. Maka 45 : 90 disederhanakan (dibagi 45) menjadi 1 : 2."
+            },
+
+            // ================= REF 19 (Soal 73-76): Soal Cerita Perbandingan dengan Jumlah Diketahui =================
+            {
+                id: 73, topicGroup: 19, category: "Perbandingan", difficulty: "Mudah",
+                question: "[Versi A] Perbandingan umur Dinda dan Rani adalah 2 : 5. Jika jumlah umur mereka berdua adalah 35 tahun, maka umur Rani adalah ...",
+                options: ["10 tahun", "15 tahun", "25 tahun", "30 tahun"],
+                answer: 2,
+                explanation: "Jumlah perbandingan = 2 + 5 = 7. Umur Rani = (5/7) × 35 = 5 × 5 = 25 tahun."
+            },
+            {
+                id: 74, topicGroup: 19, category: "Perbandingan", difficulty: "Mudah",
+                question: "[Versi B] Perbandingan banyak kelereng Arman dan Budi adalah 3 : 4. Jika jumlah kelereng mereka berdua adalah 42 butir, banyak kelereng Budi adalah ...",
+                options: ["18 butir", "21 butir", "24 butir", "28 butir"],
+                answer: 2,
+                explanation: "Jumlah perbandingan = 3 + 4 = 7. Kelereng Budi = (4/7) × 42 = 4 × 6 = 24 butir."
+            },
+            {
+                id: 75, topicGroup: 19, category: "Perbandingan", difficulty: "Sedang",
+                question: "[Versi C] Perbandingan uang saku Sinta dan Dewi adalah 4 : 7. Jika jumlah uang mereka Rp55.000,00, maka uang saku Sinta adalah ...",
+                options: ["Rp15.000,00", "Rp20.000,00", "Rp35.000,00", "Rp40.000,00"],
+                answer: 1,
+                explanation: "Jumlah perbandingan = 4 + 7 = 11. Uang Sinta = (4/11) × 55.000 = 4 × 5.000 = Rp20.000,00."
+            },
+            {
+                id: 76, topicGroup: 19, category: "Perbandingan", difficulty: "Sulit",
+                question: "[Versi D] Perbandingan panjang dan lebar sebuah persegi panjang adalah 5 : 3. Jika keliling persegi panjang tersebut adalah 64 cm, maka panjangnya adalah ...",
+                options: ["12 cm", "20 cm", "24 cm", "40 cm"],
+                answer: 1,
+                explanation: "Keliling = 2(p + l) = 64 → p + l = 32 cm. Jumlah rasio = 5 + 3 = 8. Panjang p = (5/8) × 32 = 20 cm."
+            },
+
+            // ================= REF 20 (Soal 77-80): Persamaan Fungsi Perbandingan Senilai =================
+            {
+                id: 77, topicGroup: 20, category: "Perbandingan", difficulty: "Mudah",
+                question: "[Versi A] Jika y berbanding lurus (senilai) dengan x, dan y = 20 ketika x = 4, maka persamaan fungsi perbandingan tersebut adalah ...",
+                options: ["y = 4x", "y = 80x", "y = 1/5 x", "y = 5x"],
+                answer: 3,
+                explanation: "Pada perbandingan senilai y = kx, konstanta k = y/x = 20/4 = 5. Jadi persamaannya adalah y = 5x."
+            },
+            {
+                id: 78, topicGroup: 20, category: "Perbandingan", difficulty: "Mudah",
+                question: "[Versi B] Diketahui y berbanding lurus dengan x. Jika y = 24 saat x = 3, persamaan perbandingan senilai tersebut adalah ...",
+                options: ["y = 3x", "y = 8x", "y = 1/8 x", "y = 72x"],
+                answer: 1,
+                explanation: "Konstanta perbandingan k = y/x = 24/3 = 8, sehingga persamaannya y = 8x."
+            },
+            {
+                id: 79, topicGroup: 20, category: "Perbandingan", difficulty: "Sedang",
+                question: "[Versi C] Jika y berbanding senilai dengan x dan diketahui y = -18 ketika x = 6, maka persamaan fungsinya adalah ...",
+                options: ["y = 3x", "y = -3x", "y = -12x", "y = -1/3 x"],
+                answer: 1,
+                explanation: "k = y/x = -18/6 = -3, sehingga persamaan perbandingan senilainya adalah y = -3x."
+            },
+            {
+                id: 80, topicGroup: 20, category: "Perbandingan", difficulty: "Sulit",
+                question: "[Versi D] Harga y rupiah berbanding lurus dengan banyak buku x yang dibeli. Jika harga 6 buku adalah Rp45.000,00, maka persamaan hubungan y dan x serta harga 10 buku adalah ...",
+                options: ["y = 7.500x dan Rp75.000,00", "y = 6.500x dan Rp65.000,00", "y = 7.500x dan Rp70.000,00", "y = 8.000x dan Rp80.000,00"],
+                answer: 0,
+                explanation: "k = 45.000 / 6 = 7.500 → y = 7.500x. Untuk x = 10 buku, y = 7.500(10) = Rp75.000,00."
+            }
+        ];
+
+        const STORAGE_KEY = 'pid_ular_tangga_questions_bilbul_aljabar_plsv_80_v1';
+        let questionsBank = [];
+        let usedQuestionIds = new Set();
+
+        function loadQuestionsFromStorage() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        questionsBank = parsed;
+                        return;
+                    }
+                }
+            } catch (e) {}
+            questionsBank = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+            saveQuestionsToStorage();
+        }
+
+        function saveQuestionsToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(questionsBank));
+            } catch (e) {}
+            updateQuestionCounters();
+        }
+
+        function updateQuestionCounters() {
+            document.getElementById('header-q-count').innerText = questionsBank.length;
+            const pool = getFilteredQuestions();
+            const available = pool.filter(q => !usedQuestionIds.has(q.id));
+            document.getElementById('remaining-q-badge').innerText = `Siap: ${available.length}/${pool.length}`;
+        }
+
+        // ---------------------------------------------------------------------
+        // 3. BOARD 10x10 CONFIGURATION (SNAKES, LADDERS, STAR QUIZ TILES)
+        // ---------------------------------------------------------------------
+        const LADDERS = [
+            { start: 4, end: 25 },
+            { start: 13, end: 46 },
+            { start: 22, end: 58 },
+            { start: 33, end: 69 },
+            { start: 42, end: 79 },
+            { start: 54, end: 88 },
+            { start: 62, end: 96 }
+        ];
+
+        const SNAKES = [
+            { start: 27, end: 6 },
+            { start: 40, end: 18 },
+            { start: 51, end: 29 },
+            { start: 66, end: 36 },
+            { start: 76, end: 45 },
+            { start: 89, end: 53 },
+            { start: 98, end: 64 }
+        ];
+
+        const STAR_TILES = [7, 11, 16, 20, 31, 38, 44, 49, 57, 61, 71, 74, 82, 85, 92, 95];
+
+        // 4 Teams Master Templates & Active Group Count (2, 3, or 4)
+        const TEAM_COLORS = [
+            { colorName: "Merah", bg: "#e11d48", lightBg: "rgba(225, 29, 72, 0.15)", border: "#fb7185" },
+            { colorName: "Biru", bg: "#2563eb", lightBg: "rgba(37, 99, 235, 0.15)", border: "#60a5fa" },
+            { colorName: "Hijau", bg: "#059669", lightBg: "rgba(5, 150, 105, 0.15)", border: "#34d399" },
+            { colorName: "Kuning", bg: "#d97706", lightBg: "rgba(217, 119, 6, 0.15)", border: "#fbbf44" }
+        ];
+
+        const ALL_TEAMS = [
+            { id: 0, name: "Kelompok 1", colorName: "Merah", bg: "#e11d48", lightBg: "rgba(225, 29, 72, 0.15)", border: "#fb7185", pos: 1, score: 0 },
+            { id: 1, name: "Kelompok 2", colorName: "Biru", bg: "#2563eb", lightBg: "rgba(37, 99, 235, 0.15)", border: "#60a5fa", pos: 1, score: 0 },
+            { id: 2, name: "Kelompok 3", colorName: "Hijau", bg: "#059669", lightBg: "rgba(5, 150, 105, 0.15)", border: "#34d399", pos: 1, score: 0 },
+            { id: 3, name: "Kelompok 4", colorName: "Kuning", bg: "#d97706", lightBg: "rgba(217, 119, 6, 0.15)", border: "#fbbf44", pos: 1, score: 0 }
+        ];
+
+        let activeGroupCount = 4;
+        let teams = ALL_TEAMS.slice(0, activeGroupCount);
+
+        let currentTurn = 0;
+        let isBusy = false;
+        let gameWon = false;
+
+        // Game Settings
+        let settings = {
+            quizMode: 'classic',      // 'classic' | 'everystep'
+            timerDuration: 60,        // seconds (0 = unlimited)
+            difficultyFilter: 'ALL',  // 'ALL' | 'Mudah' | 'Sedang' | 'Sulit'
+            categoryFilter: 'ALL'     // 'ALL' | 'SPLDV' | 'Bangun Ruang'
+        };
+
+        // ---------------------------------------------------------------------
+        // 4. COORDINATE MAPPING (CELL 1..100 -> SVG 0..1000 & % POSITION)
+        // ---------------------------------------------------------------------
+        function getCellCoordinates(cellNum) {
+            const clamped = Math.max(1, Math.min(100, cellNum));
+            const zeroIdx = clamped - 1;
+            const rowFromBottom = Math.floor(zeroIdx / 10); // 0 (bottom) to 9 (top)
+            const colInRow = zeroIdx % 10;
+
+            // Boustrophedon zig-zag: even rows from bottom go Left->Right, odd rows go Right->Left
+            const col = (rowFromBottom % 2 === 0) ? colInRow : (9 - colInRow);
+            const rowFromTop = 9 - rowFromBottom;
+
+            return {
+                col,
+                row: rowFromTop,
+                svgX: col * 100 + 50,
+                svgY: rowFromTop * 100 + 50,
+                pctX: col * 10 + 5,
+                pctY: rowFromTop * 10 + 5
+            };
+        }
+
+        function renderBoardGrid() {
+            const grid = document.getElementById('board-grid');
+            grid.innerHTML = '';
+
+            // Build top-to-bottom (row 9 down to 0)
+            for (let r = 9; r >= 0; r--) {
+                for (let c = 0; c < 10; c++) {
+                    const cellNum = (r % 2 === 0) ? (r * 10 + c + 1) : (r * 10 + (9 - c) + 1);
+                    const isEven = (r + c) % 2 === 0;
+
+                    const ladderObj = LADDERS.find(l => l.start === cellNum);
+                    const snakeObj = SNAKES.find(s => s.start === cellNum);
+                    const isStar = STAR_TILES.includes(cellNum);
+
+                    let cellBg = isEven ? 'bg-slate-800/80' : 'bg-slate-900/90';
+                    let badgeHtml = '';
+
+                    if (cellNum === 1) {
+                        cellBg = 'bg-indigo-900/80 border-indigo-400';
+                        badgeHtml = `<span class="text-[9px] font-extrabold text-indigo-200 bg-indigo-600 px-1 rounded">START</span>`;
+                    } else if (cellNum === 100) {
+                        cellBg = 'bg-amber-900/80 border-amber-400';
+                        badgeHtml = `<span class="text-[9px] font-extrabold text-slate-950 bg-amber-400 px-1 rounded">👑 100</span>`;
+                    } else if (ladderObj) {
+                        cellBg = 'bg-emerald-950/60';
+                        badgeHtml = `<span class="text-[9px] font-bold text-emerald-300 bg-emerald-500/20 px-1 rounded">🪜→${ladderObj.end}</span>`;
+                    } else if (snakeObj) {
+                        cellBg = 'bg-rose-950/60';
+                        badgeHtml = `<span class="text-[9px] font-bold text-rose-300 bg-rose-500/20 px-1 rounded">🐍→${snakeObj.end}</span>`;
+                    } else if (isStar) {
+                        cellBg = 'bg-amber-950/40';
+                        badgeHtml = `<span class="text-[10px] text-amber-400">⭐</span>`;
+                    }
+
+                    const cell = document.createElement('div');
+                    cell.className = `border border-slate-700/50 ${cellBg} p-1 flex flex-col justify-between relative overflow-hidden`;
+                    cell.innerHTML = `
+                        <div class="flex items-center justify-between leading-none z-10">
+                            <span class="text-[10px] md:text-xs font-extrabold ${cellNum === 100 ? 'text-amber-300' : 'text-slate-400'}">${cellNum}</span>
+                            ${badgeHtml}
+                        </div>
+                    `;
+                    grid.appendChild(cell);
+                }
+            }
+
+            drawSnakesAndLaddersSVG();
+            renderPawns(false);
+        }
+
+        // ---------------------------------------------------------------------
+        // 5. PRECISION SVG VECTOR ART FOR LADDERS & CURVED SNAKES
+        // ---------------------------------------------------------------------
+        function drawSnakesAndLaddersSVG() {
+            const svg = document.getElementById('board-svg');
+            let svgContent = `
+                <defs>
+                    <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.55"/>
+                    </filter>
+                    <linearGradient id="ladder-gold" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#f59e0b"/>
+                        <stop offset="50%" stop-color="#fde047"/>
+                        <stop offset="100%" stop-color="#d97706"/>
+                    </linearGradient>
+                </defs>
+            `;
+
+            // Draw Ladders
+            LADDERS.forEach(ladder => {
+                const p1 = getCellCoordinates(ladder.start);
+                const p2 = getCellCoordinates(ladder.end);
+                const dx = p2.svgX - p1.svgX;
+                const dy = p2.svgY - p1.svgY;
+                const len = Math.hypot(dx, dy);
+                const nx = (-dy / len) * 14;
+                const ny = (dx / len) * 14;
+
+                // Rails
+                svgContent += `
+                    <g filter="url(#drop-shadow)" opacity="0.92">
+                        <line x1="${p1.svgX + nx}" y1="${p1.svgY + ny}" x2="${p2.svgX + nx}" y2="${p2.svgY + ny}" stroke="url(#ladder-gold)" stroke-width="7" stroke-linecap="round"/>
+                        <line x1="${p1.svgX - nx}" y1="${p1.svgY - ny}" x2="${p2.svgX - nx}" y2="${p2.svgY - ny}" stroke="url(#ladder-gold)" stroke-width="7" stroke-linecap="round"/>
+                `;
+
+                // Rungs
+                const steps = Math.max(3, Math.floor(len / 38));
+                for (let i = 1; i < steps; i++) {
+                    const t = i / steps;
+                    const rx = p1.svgX + dx * t;
+                    const ry = p1.svgY + dy * t;
+                    svgContent += `<line x1="${rx + nx}" y1="${ry + ny}" x2="${rx - nx}" y2="${ry - ny}" stroke="#fef08a" stroke-width="5" stroke-linecap="round"/>`;
+                }
+                svgContent += `</g>`;
+            });
+
+            // Draw Curved Snakes
+            const snakeColors = ['#f43f5e', '#ec4899', '#a855f7', '#ef4444', '#f97316', '#e11d48', '#db2777'];
+            SNAKES.forEach((snake, idx) => {
+                const head = getCellCoordinates(snake.start);
+                const tail = getCellCoordinates(snake.end);
+                const color = snakeColors[idx % snakeColors.length];
+
+                const midX = (head.svgX + tail.svgX) / 2;
+                const midY = (head.svgY + tail.svgY) / 2;
+                const dx = tail.svgX - head.svgX;
+                const dy = tail.svgY - head.svgY;
+                const perpX = -dy * 0.25;
+                const perpY = dx * 0.25;
+
+                const c1x = (head.svgX + midX) / 2 + perpX;
+                const c1y = (head.svgY + midY) / 2 + perpY;
+                const c2x = (midX + tail.svgX) / 2 - perpX;
+                const c2y = (midY + tail.svgY) / 2 - perpY;
+
+                const pathD = `M ${head.svgX} ${head.svgY} Q ${c1x} ${c1y}, ${midX} ${midY} Q ${c2x} ${c2y}, ${tail.svgX} ${tail.svgY}`;
+
+                svgContent += `
+                    <g filter="url(#drop-shadow)" opacity="0.92">
+                        <path d="${pathD}" fill="none" stroke="${color}" stroke-width="14" stroke-linecap="round"/>
+                        <path d="${pathD}" fill="none" stroke="#fecdd3" stroke-width="4" stroke-dasharray="10,14" stroke-linecap="round"/>
+                        <!-- Snake Head -->
+                        <circle cx="${head.svgX}" cy="${head.svgY}" r="14" fill="${color}" stroke="#ffffff" stroke-width="2.5"/>
+                        <circle cx="${head.svgX - 4}" cy="${head.svgY - 3}" r="2.5" fill="#ffffff"/>
+                        <circle cx="${head.svgX + 4}" cy="${head.svgY - 3}" r="2.5" fill="#ffffff"/>
+                        <circle cx="${head.svgX - 4}" cy="${head.svgY - 3}" r="1.2" fill="#0f172a"/>
+                        <circle cx="${head.svgX + 4}" cy="${head.svgY - 3}" r="1.2" fill="#0f172a"/>
+                    </g>
+                `;
+            });
+
+            svg.innerHTML = svgContent;
+        }
+
+        // ---------------------------------------------------------------------
+        // 6. PAWNS RENDERING (2x2 COLLISION OFFSET WHEN SHARING SAME CELL)
+        // ---------------------------------------------------------------------
+        function renderPawns(animate = true) {
+            const layer = document.getElementById('pawns-layer');
+
+            // Remove pawns for inactive teams (when 2 or 3 teams selected)
+            ALL_TEAMS.forEach(t => {
+                if (t.id >= activeGroupCount) {
+                    const extraPawn = document.getElementById(`pawn-team-${t.id}`);
+                    if (extraPawn) extraPawn.remove();
+                }
+            });
+
+            // Group active teams by current cell position to prevent overlapping
+            const cellGroups = {};
+            teams.forEach(t => {
+                if (!cellGroups[t.pos]) cellGroups[t.pos] = [];
+                cellGroups[t.pos].push(t);
+            });
+
+            const offsets = [
+                { dx: -1.8, dy: -1.8 },
+                { dx: 1.8, dy: -1.8 },
+                { dx: -1.8, dy: 1.8 },
+                { dx: 1.8, dy: 1.8 }
+            ];
+
+            teams.forEach(t => {
+                let pawnEl = document.getElementById(`pawn-team-${t.id}`);
+                if (!pawnEl) {
+                    pawnEl = document.createElement('div');
+                    pawnEl.id = `pawn-team-${t.id}`;
+                    pawnEl.className = "absolute w-6 h-6 md:w-7 md:h-7 -ml-3 -mt-3 md:-ml-3.5 md:-mt-3.5 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-[11px] font-extrabold text-white pawn-transition";
+                    layer.appendChild(pawnEl);
+                }
+
+                const coords = getCellCoordinates(t.pos);
+                const occupants = cellGroups[t.pos];
+                const idxInCell = occupants.indexOf(t);
+                const off = occupants.length > 1 ? offsets[idxInCell] : { dx: 0, dy: 0 };
+
+                pawnEl.style.backgroundColor = t.bg;
+                pawnEl.style.left = `${coords.pctX + off.dx}%`;
+                pawnEl.style.top = `${coords.pctY + off.dy}%`;
+                pawnEl.style.zIndex = (t.id === currentTurn) ? 40 : 30;
+                pawnEl.innerText = t.id + 1;
+            });
+        }
+
+        // ---------------------------------------------------------------------
+        // 7. RIGHT PANEL UI (GROUPS SCOREBOARD & LOGS)
+        // ---------------------------------------------------------------------
+        function renderGroupsUI() {
+            const container = document.getElementById('groups-list');
+            container.innerHTML = '';
+
+            // Adjust spacing when 2 or 3 groups are active for larger PID readability
+            container.className = activeGroupCount === 2
+                ? 'grid grid-cols-1 gap-2.5'
+                : 'grid grid-cols-2 lg:grid-cols-1 gap-2';
+
+            const countLabel = document.getElementById('header-team-count-label');
+            if (countLabel) countLabel.innerText = `${activeGroupCount} Kelompok`;
+            const sbCount = document.getElementById('scoreboard-group-count');
+            if (sbCount) sbCount.innerText = activeGroupCount;
+
+            [2, 3, 4].forEach(cnt => {
+                const hBtn = document.getElementById(`hdr-grp-btn-${cnt}`);
+                if (hBtn) {
+                    hBtn.className = (cnt === activeGroupCount)
+                        ? "px-2.5 py-1 rounded-lg text-xs font-extrabold bg-indigo-600 text-white shadow transition"
+                        : "px-2.5 py-1 rounded-lg text-xs font-extrabold text-slate-300 hover:text-white transition";
+                }
+                const sBtn = document.getElementById(`sb-grp-btn-${cnt}`);
+                if (sBtn) {
+                    sBtn.className = (cnt === activeGroupCount)
+                        ? "px-2 py-0.5 rounded text-[10px] font-extrabold bg-indigo-600 text-white transition"
+                        : "px-2 py-0.5 rounded text-[10px] font-extrabold text-slate-400 hover:text-white transition";
+                }
+            });
+
+            teams.forEach((t, idx) => {
+                const isActive = idx === currentTurn;
+                const card = document.createElement('div');
+                const paddingClass = activeGroupCount === 2 ? 'p-3.5' : 'p-2.5';
+                card.className = `${paddingClass} rounded-xl border transition flex items-center justify-between ${isActive ? 'bg-slate-800 border-indigo-400 active-turn-glow' : 'bg-slate-950/60 border-slate-800'}`;
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="${activeGroupCount === 2 ? 'w-8 h-8 text-sm' : 'w-6 h-6 text-xs'} rounded-full flex items-center justify-center font-extrabold text-white shrink-0 border border-white/60 shadow" style="background:${t.bg}">
+                            ${t.id + 1}
+                        </div>
+                        <div class="min-w-0">
+                            <input type="text" value="${t.name}" onchange="renameTeam(${t.id}, this.value)"
+                                class="bg-transparent ${activeGroupCount === 2 ? 'text-sm w-36' : 'text-xs w-28'} font-extrabold text-white focus:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 rounded px-1 truncate" title="Klik untuk ubah nama kelompok">
+                            <div class="text-[10px] text-slate-400 px-1">Petak: <strong class="text-indigo-300">${t.pos}</strong>/100</div>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <div class="${activeGroupCount === 2 ? 'text-sm' : 'text-xs'} font-extrabold text-amber-400">${t.score} Poin</div>
+                        ${isActive ? '<span class="text-[9px] font-bold text-emerald-400 uppercase">Giliran</span>' : ''}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            const cur = teams[currentTurn];
+            document.getElementById('turn-group-name').innerText = `${cur.name} (${cur.colorName})`;
+            document.getElementById('turn-badge-dot').style.backgroundColor = cur.bg;
+        }
+
+        function renameTeam(id, newName) {
+            const clean = newName.trim();
+            if (clean && ALL_TEAMS[id]) {
+                ALL_TEAMS[id].name = clean;
+                renderGroupsUI();
+            }
+        }
+
+        function changeTeamColor(id, colorIdx) {
+            const c = TEAM_COLORS[colorIdx];
+            if (c && ALL_TEAMS[id]) {
+                ALL_TEAMS[id].colorName = c.colorName;
+                ALL_TEAMS[id].bg = c.bg;
+                ALL_TEAMS[id].lightBg = c.lightBg;
+                ALL_TEAMS[id].border = c.border;
+                renderGroupsUI();
+                renderPawns(false);
+            }
+        }
+
+        function applyGroupCount(count, resetPositions = false) {
+            activeGroupCount = Math.max(2, Math.min(4, count));
+            teams = ALL_TEAMS.slice(0, activeGroupCount);
+            if (resetPositions) {
+                ALL_TEAMS.forEach(t => { t.pos = 1; t.score = 0; });
+                currentTurn = 0;
+                isBusy = false;
+                gameWon = false;
+                usedQuestionIds.clear();
+                document.getElementById('btn-roll-dice').disabled = false;
+                document.getElementById('btn-roll-dice').classList.remove('opacity-50');
+                document.getElementById('activity-log').innerHTML = '';
+                addActivityLog(`👥 Mode <strong>${activeGroupCount} Kelompok</strong> dimulai! Giliran <strong>${teams[0].name}</strong>.`);
+            } else if (currentTurn >= activeGroupCount) {
+                currentTurn = 0;
+            }
+            renderGroupsUI();
+            renderPawns(false);
+            updateQuestionCounters();
+        }
+
+        function requestChangeGroupCount(count) {
+            if (count === activeGroupCount) return;
+            if (isBusy) return;
+            const hasProgress = teams.some(t => t.pos > 1 || t.score > 0);
+            if (!hasProgress) {
+                applyGroupCount(count, true);
+            } else {
+                showConfirmBox(
+                    `Ubah Menjadi ${count} Kelompok?`,
+                    `Permainan akan dimulai ulang dari Petak 1 dengan ${count} kelompok bermain.`,
+                    () => {
+                        closeConfirmModal();
+                        applyGroupCount(count, true);
+                    }
+                );
+            }
+        }
+
+        function addActivityLog(htmlMsg) {
+            const log = document.getElementById('activity-log');
+            const entry = document.createElement('div');
+            entry.className = "bg-slate-950/70 border-l-2 border-indigo-500 px-2.5 py-1.5 rounded-r-lg text-slate-300 leading-snug";
+            entry.innerHTML = htmlMsg;
+            log.prepend(entry);
+        }
+
+        // ---------------------------------------------------------------------
+        // 8. 3D DICE ROLLING & STEP-BY-STEP MOVEMENT ENGINE
+        // ---------------------------------------------------------------------
+        const DICE_ROTATIONS = {
+            1: 'rotateX(0deg) rotateY(0deg)',
+            2: 'rotateX(0deg) rotateY(-90deg)',
+            3: 'rotateX(0deg) rotateY(180deg)',
+            4: 'rotateX(0deg) rotateY(90deg)',
+            5: 'rotateX(-90deg) rotateY(0deg)',
+            6: 'rotateX(90deg) rotateY(0deg)'
+        };
+
+        let pendingDiceRoll = 0;
+
+        function handleRollDice() {
+            if (isBusy || gameWon) return;
+            isBusy = true;
+            document.getElementById('btn-roll-dice').disabled = true;
+            document.getElementById('btn-roll-dice').classList.add('opacity-50');
+
+            const cube = document.getElementById('cube-dice');
+            const result = Math.floor(Math.random() * 6) + 1;
+            pendingDiceRoll = result;
+
+            // Spin animation
+            let spins = 0;
+            const spinInterval = setInterval(() => {
+                playSFX('dice');
+                const rx = Math.floor(Math.random() * 4) * 90 + 360;
+                const ry = Math.floor(Math.random() * 4) * 90 + 360;
+                cube.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+                spins++;
+                if (spins >= 5) {
+                    clearInterval(spinInterval);
+                    cube.style.transform = DICE_ROTATIONS[result];
+                    setTimeout(() => onDiceFinished(result), 550);
+                }
+            }, 90);
+        }
+
+        function onDiceFinished(diceValue) {
+            const team = teams[currentTurn];
+            addActivityLog(`🎲 <strong>${team.name}</strong> melempar dadu: <span class="text-amber-400 font-extrabold">${diceValue}</span>.`);
+
+            if (settings.quizMode === 'everystep') {
+                // Must answer a quiz before moving
+                openQuizModal({
+                    type: 'everystep',
+                    diceValue: diceValue,
+                    badgeText: `🎲 Tantangan Langkah (+${diceValue} Petak)`
+                });
+            } else {
+                // Move first, then check special tiles
+                animatePawnSteps(currentTurn, diceValue, () => {
+                    evaluateLandingTile(currentTurn);
+                });
+            }
+        }
+
+        function animatePawnSteps(teamIdx, steps, callback) {
+            const team = teams[teamIdx];
+            let remaining = Math.abs(steps);
+            let direction = steps >= 0 ? 1 : -1;
+
+            if (remaining === 0) {
+                if (callback) callback();
+                return;
+            }
+
+            const stepTimer = setInterval(() => {
+                // Bounce back from 100 if exceeding 100
+                if (direction === 1 && team.pos >= 100) {
+                    direction = -1;
+                }
+                if (direction === -1 && team.pos <= 1) {
+                    direction = 1;
+                }
+
+                team.pos += direction;
+                playSFX('step');
+                renderPawns(true);
+                renderGroupsUI();
+
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(stepTimer);
+                    setTimeout(() => {
+                        if (callback) callback();
+                    }, 300);
+                }
+            }, 240);
+        }
+
+        function evaluateLandingTile(teamIdx) {
+            const team = teams[teamIdx];
+
+            // Check Win at exactly 100
+            if (team.pos === 100) {
+                triggerVictory(team);
+                return;
+            }
+
+            // Check Ladder
+            const ladder = LADDERS.find(l => l.start === team.pos);
+            if (ladder) {
+                openQuizModal({
+                    type: 'ladder',
+                    targetPos: ladder.end,
+                    badgeText: `🪜 Kuis Tangga (Petak ${ladder.start} → ${ladder.end})`
+                });
+                return;
+            }
+
+            // Check Snake
+            const snake = SNAKES.find(s => s.start === team.pos);
+            if (snake) {
+                openQuizModal({
+                    type: 'snake',
+                    targetPos: snake.end,
+                    badgeText: `🐍 Kuis Ular (Petak ${snake.start} → ${snake.end})`
+                });
+                return;
+            }
+
+            // Check Star Tile
+            if (STAR_TILES.includes(team.pos)) {
+                openQuizModal({
+                    type: 'star',
+                    badgeText: `⭐ Petak Bintang Bonus (+2 Langkah)`
+                });
+                return;
+            }
+
+            // Normal tile -> end turn
+            endCurrentTurn();
+        }
+
+        function endCurrentTurn() {
+            currentTurn = (currentTurn + 1) % teams.length;
+            isBusy = false;
+            document.getElementById('btn-roll-dice').disabled = false;
+            document.getElementById('btn-roll-dice').classList.remove('opacity-50');
+            renderGroupsUI();
+            renderPawns(false);
+        }
+
+        // ---------------------------------------------------------------------
+        // 9. QUIZ MODAL LOGIC (NON-REPEATING POOL, TIMER & EXPLANATIONS)
+        // ---------------------------------------------------------------------
+        let currentQuizContext = null;
+        let currentQuestionObj = null;
+        let selectedChoiceIdx = null;
+        let quizTimerHandle = null;
+
+        function getFilteredQuestions() {
+            let pool = questionsBank;
+            if (settings.categoryFilter !== 'ALL') {
+                const catFiltered = pool.filter(q => q.category === settings.categoryFilter);
+                if (catFiltered.length > 0) pool = catFiltered;
+            }
+            if (settings.difficultyFilter !== 'ALL') {
+                const diffFiltered = pool.filter(q => q.difficulty === settings.difficultyFilter);
+                if (diffFiltered.length > 0) pool = diffFiltered;
+            }
+            return pool.length > 0 ? pool : questionsBank;
+        }
+
+        function pickNextQuestion() {
+            const pool = getFilteredQuestions();
+            let unused = pool.filter(q => !usedQuestionIds.has(q.id));
+            if (unused.length === 0) {
+                // Reset cycle once all questions in pool have been used
+                pool.forEach(q => usedQuestionIds.delete(q.id));
+                unused = pool;
+            }
+            const chosen = unused[Math.floor(Math.random() * unused.length)];
+            usedQuestionIds.add(chosen.id);
+            updateQuestionCounters();
+            return chosen;
+        }
+
+        function openQuizModal(context) {
+            currentQuizContext = context;
+            currentQuestionObj = pickNextQuestion();
+            selectedChoiceIdx = null;
+
+            const team = teams[currentTurn];
+            document.getElementById('quiz-context-badge').innerText = context.badgeText;
+            document.getElementById('quiz-diff-badge').innerText = currentQuestionObj.difficulty;
+            const topicLabel = currentQuestionObj.topicGroup ? ` • Topik ${currentQuestionObj.topicGroup}` : '';
+            document.getElementById('quiz-cat-badge').innerText = `${currentQuestionObj.category}${topicLabel}`;
+            document.getElementById('quiz-team-label').innerText = team.name;
+            document.getElementById('quiz-team-label').style.borderColor = team.bg;
+            document.getElementById('quiz-question-text').innerText = currentQuestionObj.question;
+
+            // Rule hint
+            const hintEl = document.getElementById('quiz-rule-hint');
+            if (context.type === 'ladder') hintEl.innerText = "Jawab BENAR untuk naik tangga! Salah = tetap di tempat.";
+            else if (context.type === 'snake') hintEl.innerText = "Jawab BENAR agar selamat dari ular! Salah = turun ke ekor ular.";
+            else if (context.type === 'star') hintEl.innerText = "Jawab BENAR untuk bonus +15 poin & maju +2 petak!";
+            else if (context.type === 'everystep') hintEl.innerText = `Jawab BENAR untuk melangkah maju ${context.diceValue} petak!`;
+
+            // Render options
+            const grid = document.getElementById('quiz-options-grid');
+            grid.innerHTML = '';
+            currentQuestionObj.options.forEach((optText, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.id = `quiz-opt-btn-${idx}`;
+                btn.className = "p-4 rounded-2xl bg-slate-800/90 hover:bg-slate-700 border-2 border-slate-700 text-left text-white font-semibold text-base transition flex items-center gap-3.5 active:scale-[0.99]";
+                btn.innerHTML = `
+                    <span class="w-8 h-8 rounded-xl bg-slate-700 text-indigo-300 font-extrabold flex items-center justify-center shrink-0">${String.fromCharCode(65 + idx)}</span>
+                    <span>${optText}</span>
+                `;
+                btn.onclick = () => selectQuizChoice(idx);
+                grid.appendChild(btn);
+            });
+
+            // Reset modal state
+            document.getElementById('quiz-explanation-box').classList.add('hidden');
+            const submitBtn = document.getElementById('btn-submit-answer');
+            submitBtn.classList.remove('hidden');
+            submitBtn.disabled = true;
+            document.getElementById('btn-continue-game').classList.add('hidden');
+
+            document.getElementById('quiz-modal').classList.remove('hidden');
+
+            // Timer
+            clearInterval(quizTimerHandle);
+            const timerBox = document.getElementById('quiz-timer-box');
+            if (settings.timerDuration > 0) {
+                timerBox.classList.remove('hidden');
+                let sec = settings.timerDuration;
+                document.getElementById('quiz-timer-text').innerText = `${sec}s`;
+                quizTimerHandle = setInterval(() => {
+                    sec--;
+                    document.getElementById('quiz-timer-text').innerText = `${sec}s`;
+                    if (sec <= 0) {
+                        clearInterval(quizTimerHandle);
+                        evaluateQuizOutcome(false, true);
+                    }
+                }, 1000);
+            } else {
+                timerBox.classList.add('hidden');
+            }
+        }
+
+        function selectQuizChoice(idx) {
+            if (!document.getElementById('btn-continue-game').classList.contains('hidden')) return;
+            selectedChoiceIdx = idx;
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`quiz-opt-btn-${i}`);
+                if (b) {
+                    b.classList.remove('border-indigo-400', 'bg-indigo-950/80');
+                    b.classList.add('border-slate-700');
+                }
+            }
+            const active = document.getElementById(`quiz-opt-btn-${idx}`);
+            active.classList.remove('border-slate-700');
+            active.classList.add('border-indigo-400', 'bg-indigo-950/80');
+            document.getElementById('btn-submit-answer').disabled = false;
+        }
+
+        function confirmQuizAnswer() {
+            if (selectedChoiceIdx === null) return;
+            clearInterval(quizTimerHandle);
+            const isCorrect = selectedChoiceIdx === currentQuestionObj.answer;
+            evaluateQuizOutcome(isCorrect, false);
+        }
+
+        let lastQuizWasCorrect = false;
+
+        function evaluateQuizOutcome(isCorrect, isTimeout) {
+            lastQuizWasCorrect = isCorrect;
+            const team = teams[currentTurn];
+
+            // Highlight correct & wrong buttons
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`quiz-opt-btn-${i}`);
+                b.disabled = true;
+                if (i === currentQuestionObj.answer) {
+                    b.classList.remove('border-slate-700', 'border-indigo-400');
+                    b.classList.add('border-emerald-500', 'bg-emerald-950/70');
+                } else if (i === selectedChoiceIdx && !isCorrect) {
+                    b.classList.remove('border-indigo-400');
+                    b.classList.add('border-rose-500', 'bg-rose-950/70');
+                }
+            }
+
+            const expBox = document.getElementById('quiz-explanation-box');
+            const heading = document.getElementById('quiz-result-heading');
+            const expText = document.getElementById('quiz-explanation-text');
+            expBox.classList.remove('hidden', 'bg-emerald-950/60', 'border-emerald-500/50', 'bg-rose-950/60', 'border-rose-500/50');
+
+            if (isCorrect) {
+                playSFX('correct');
+                team.score += 15;
+                expBox.classList.add('bg-emerald-950/60', 'border-emerald-500/50');
+                heading.className = "text-base font-extrabold text-emerald-300 mb-1";
+                heading.innerText = "✅ JAWABAN BENAR! (+15 Poin)";
+            } else {
+                playSFX('wrong');
+                expBox.classList.add('bg-rose-950/60', 'border-rose-500/50');
+                heading.className = "text-base font-extrabold text-rose-300 mb-1";
+                heading.innerText = isTimeout
+                    ? `⏱️ WAKTU HABIS! Jawaban benar: ${String.fromCharCode(65 + currentQuestionObj.answer)}`
+                    : `❌ KURANG TEPAT! Jawaban benar: ${String.fromCharCode(65 + currentQuestionObj.answer)}`;
+            }
+
+            expText.innerText = currentQuestionObj.explanation || "Terus berlatih konsep SPLDV dan Bangun Ruang!";
+            renderGroupsUI();
+
+            document.getElementById('btn-submit-answer').classList.add('hidden');
+            document.getElementById('btn-continue-game').classList.remove('hidden');
+        }
+
+        function finishQuizTurn() {
+            document.getElementById('quiz-modal').classList.add('hidden');
+            const team = teams[currentTurn];
+            const ctx = currentQuizContext;
+
+            if (ctx.type === 'ladder') {
+                if (lastQuizWasCorrect) {
+                    playSFX('ladder');
+                    addActivityLog(`🪜 <strong>${team.name}</strong> menjawab benar dan naik tangga ke petak <strong>${ctx.targetPos}</strong>!`);
+                    team.pos = ctx.targetPos;
+                    renderPawns(true);
+                    renderGroupsUI();
+                    if (team.pos === 100) { triggerVictory(team); return; }
+                } else {
+                    addActivityLog(`🛑 <strong>${team.name}</strong> gagal menjawab soal tangga, tetap di petak ${team.pos}.`);
+                }
+                endCurrentTurn();
+            } else if (ctx.type === 'snake') {
+                if (lastQuizWasCorrect) {
+                    addActivityLog(`🛡️ <strong>${team.name}</strong> menjawab benar dan selamat dari ular di petak ${team.pos}!`);
+                } else {
+                    playSFX('snake');
+                    addActivityLog(`🐍 <strong>${team.name}</strong> salah menjawab dan turun mengikuti ular ke petak <strong>${ctx.targetPos}</strong>!`);
+                    team.pos = ctx.targetPos;
+                    renderPawns(true);
+                    renderGroupsUI();
+                }
+                endCurrentTurn();
+            } else if (ctx.type === 'star') {
+                if (lastQuizWasCorrect) {
+                    addActivityLog(`⭐ <strong>${team.name}</strong> menjawab benar petak bintang! Maju +2 langkah.`);
+                    animatePawnSteps(currentTurn, 2, () => {
+                        if (team.pos === 100) triggerVictory(team);
+                        else endCurrentTurn();
+                    });
+                } else {
+                    addActivityLog(`⭐ <strong>${team.name}</strong> gagal mendapat bonus petak bintang.`);
+                    endCurrentTurn();
+                }
+            } else if (ctx.type === 'everystep') {
+                if (lastQuizWasCorrect) {
+                    addActivityLog(`✅ <strong>${team.name}</strong> menjawab benar dan melangkah maju ${ctx.diceValue} petak.`);
+                    animatePawnSteps(currentTurn, ctx.diceValue, () => {
+                        evaluateLandingTileAfterEveryStep(currentTurn);
+                    });
+                } else {
+                    addActivityLog(`❌ <strong>${team.name}</strong> salah menjawab sehingga batal melangkah.`);
+                    endCurrentTurn();
+                }
+            }
+        }
+
+        function evaluateLandingTileAfterEveryStep(teamIdx) {
+            const team = teams[teamIdx];
+            if (team.pos === 100) { triggerVictory(team); return; }
+            const ladder = LADDERS.find(l => l.start === team.pos);
+            if (ladder) {
+                playSFX('ladder');
+                team.pos = ladder.end;
+                addActivityLog(`🪜 <strong>${team.name}</strong> naik tangga ke petak <strong>${ladder.end}</strong>!`);
+                renderPawns(true);
+                renderGroupsUI();
+                if (team.pos === 100) { triggerVictory(team); return; }
+            }
+            const snake = SNAKES.find(s => s.start === team.pos);
+            if (snake) {
+                playSFX('snake');
+                team.pos = snake.end;
+                addActivityLog(`🐍 <strong>${team.name}</strong> turun ular ke petak <strong>${snake.end}</strong>!`);
+                renderPawns(true);
+                renderGroupsUI();
+            }
+            endCurrentTurn();
+        }
+
+        // ---------------------------------------------------------------------
+        // 10. VICTORY CELEBRATION & RESET
+        // ---------------------------------------------------------------------
+        function triggerVictory(winnerTeam) {
+            gameWon = true;
+            isBusy = false;
+            playSFX('win');
+            if (typeof confetti === 'function') {
+                confetti({ particleCount: 160, spread: 90, origin: { y: 0.6 } });
+            }
+
+            document.getElementById('winner-title').innerText = `🏆 ${winnerTeam.name} Menang!`;
+            document.getElementById('winner-subtitle').innerText = `Berhasil menaklukkan petak 100 dengan perolehan ${winnerTeam.score} Poin!`;
+
+            const sorted = [...teams].sort((a, b) => (b.pos * 1000 + b.score) - (a.pos * 1000 + a.score));
+            const standingsEl = document.getElementById('winner-standings');
+            standingsEl.innerHTML = sorted.map((t, idx) => `
+                <div class="flex items-center justify-between py-1.5 border-b border-slate-800 last:border-none">
+                    <span class="font-bold text-white">#${idx + 1} ${t.name} (${t.colorName})</span>
+                    <span class="text-slate-300">Petak <strong>${t.pos}</strong> • <strong class="text-amber-400">${t.score} Poin</strong></span>
+                </div>
+            `).join('');
+
+            document.getElementById('winner-modal').classList.remove('hidden');
+        }
+
+        function confirmResetGame() {
+            showConfirmBox("Reset Permainan?", "Semua pion akan kembali ke Petak 1 dan skor direset menjadi 0.", executeResetGame);
+        }
+
+        function executeResetGame() {
+            closeConfirmModal();
+            document.getElementById('winner-modal').classList.add('hidden');
+            ALL_TEAMS.forEach(t => { t.pos = 1; t.score = 0; });
+            teams = ALL_TEAMS.slice(0, activeGroupCount);
+            currentTurn = 0;
+            isBusy = false;
+            gameWon = false;
+            usedQuestionIds.clear();
+            document.getElementById('btn-roll-dice').disabled = false;
+            document.getElementById('btn-roll-dice').classList.remove('opacity-50');
+            document.getElementById('activity-log').innerHTML = '';
+            addActivityLog(`🔄 Permainan baru (${activeGroupCount} Kelompok) dimulai! Giliran <strong>${teams[0].name}</strong>.`);
+            renderGroupsUI();
+            renderPawns(false);
+            updateQuestionCounters();
+        }
+
+        // ---------------------------------------------------------------------
+        // 12. SETTINGS, START SETUP & CUSTOM CONFIRMATION MODAL
+        // ---------------------------------------------------------------------
+        let setupSelectedCount = 4;
+
+        function selectSetupGroupCount(count) {
+            setupSelectedCount = count;
+            [2, 3, 4].forEach(c => {
+                const btn = document.getElementById(`setup-grp-${c}`);
+                if (btn) {
+                    btn.className = (c === count)
+                        ? "p-4 rounded-2xl border-2 border-indigo-400 bg-indigo-950/70 text-center shadow-lg transition"
+                        : "p-4 rounded-2xl border-2 border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-center transition";
+                }
+            });
+            renderSetupTeamInputs();
+        }
+
+        function renderSetupTeamInputs() {
+            const container = document.getElementById('setup-teams-inputs');
+            if (!container) return;
+            container.innerHTML = ALL_TEAMS.slice(0, setupSelectedCount).map(t => `
+                <div class="flex items-center gap-2 bg-slate-800/90 border border-slate-700 rounded-xl p-2">
+                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold text-white shrink-0 border border-white/60" style="background:${t.bg}">${t.id + 1}</span>
+                    <input type="text" value="${t.name}" oninput="ALL_TEAMS[${t.id}].name = this.value.trim() || 'Kelompok ${t.id + 1}'"
+                        class="bg-transparent text-xs font-bold text-white focus:outline-none w-full" placeholder="Nama Kelompok ${t.id + 1}">
+                    <span class="text-[10px] text-slate-400 shrink-0">${t.colorName}</span>
+                </div>
+            `).join('');
+        }
+
+        function startGameFromSetup() {
+            document.getElementById('start-setup-modal').classList.add('hidden');
+            applyGroupCount(setupSelectedCount, true);
+        }
+
+        function renderSettingsTeamsEditor() {
+            [2, 3, 4].forEach(c => {
+                const btn = document.getElementById(`set-grp-btn-${c}`);
+                if (btn) {
+                    btn.className = (c === activeGroupCount)
+                        ? "py-2.5 rounded-xl font-extrabold border border-indigo-400 bg-indigo-600 text-white shadow transition"
+                        : "py-2.5 rounded-xl font-extrabold border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 transition";
+                }
+            });
+            const editor = document.getElementById('settings-teams-editor');
+            if (!editor) return;
+            editor.innerHTML = ALL_TEAMS.slice(0, activeGroupCount).map(t => `
+                <div class="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5">
+                    <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold text-white shrink-0" style="background:${t.bg}">${t.id + 1}</span>
+                    <input type="text" value="${t.name}" onchange="renameTeam(${t.id}, this.value); renderSettingsTeamsEditor();"
+                        class="bg-transparent text-xs font-bold text-white focus:outline-none flex-1">
+                    <select onchange="changeTeamColor(${t.id}, parseInt(this.value)); renderSettingsTeamsEditor();" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200">
+                        ${TEAM_COLORS.map((c, idx) => `<option value="${idx}" ${c.colorName === t.colorName ? 'selected' : ''}>${c.colorName}</option>`).join('')}
+                    </select>
+                </div>
+            `).join('');
+        }
+
+        function selectSettingsGroupCount(count) {
+            if (count === activeGroupCount) return;
+            applyGroupCount(count, true);
+            renderSettingsTeamsEditor();
+        }
+
+        function openSettingsModal() {
+            renderSettingsTeamsEditor();
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function updateSettings() {
+            settings.quizMode = document.getElementById('setting-quiz-mode').value;
+            settings.timerDuration = parseInt(document.getElementById('setting-timer-duration').value);
+            settings.difficultyFilter = document.getElementById('setting-difficulty').value;
+            settings.categoryFilter = document.getElementById('setting-category').value;
+
+            document.getElementById('quick-difficulty-select').value = settings.difficultyFilter;
+            document.getElementById('quick-category-select').value = settings.categoryFilter;
+            document.getElementById('active-mode-badge').innerText = settings.quizMode === 'classic' ? 'Mode Klasik' : 'Mode Setiap Langkah';
+            updateQuestionCounters();
+        }
+
+        function changeDifficultyFilter(val) {
+            settings.difficultyFilter = val;
+            document.getElementById('setting-difficulty').value = val;
+            updateQuestionCounters();
+        }
+
+        function changeCategoryFilter(val) {
+            settings.categoryFilter = val;
+            document.getElementById('setting-category').value = val;
+            updateQuestionCounters();
+        }
+
+        function showConfirmBox(title, message, onYesCallback) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-message').innerText = message;
+            const yesBtn = document.getElementById('confirm-yes-btn');
+            yesBtn.onclick = onYesCallback;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+        }
+
+        // ---------------------------------------------------------------------
+        // 13. INITIALIZATION ON WINDOW LOAD
+        // ---------------------------------------------------------------------
+        window.onload = function() {
+            loadQuestionsFromStorage();
+            renderBoardGrid();
+            renderGroupsUI();
+            updateQuestionCounters();
+            selectSetupGroupCount(4);
+            addActivityLog("🎮 Selamat datang di <strong>Ular Tangga Matematika PID</strong>! Pilih jumlah kelompok untuk memulai.");
+        };
+    </script>
+</body>
+</html>
