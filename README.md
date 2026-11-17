@@ -1,0 +1,1 @@
+# Bilangan-Bulat-Bentuk-Aljabar-PLSV-dan-Perbandingan-
